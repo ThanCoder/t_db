@@ -1,40 +1,46 @@
+import 'package:t_db/src/t_db_event_listener.dart';
 import 'package:t_db/t_db.dart';
 
 void main() async {
+  //
   final db = UserDB();
   await db.open('user.db');
+  // debug log
+  db.onDebugLog((message) {
+    print('[Debug Log]: $message');
+  });
 
-  await db.insert(User(1, 'Aung', 20));
-  await db.insert(User(2, 'Su', 21));
-  await db.insert(User(3, 'Min', 22));
+  final myListener = MyListener();
+  db.addListener(myListener);
 
-  // await db.update(User(2, 'old su and new Su Su', 21));
-  print(await db.getAll());
+  // await db.add(User(1, 'Aung', 20));
+  // await db.add(User(2, 'Su', 21));
+  // await db.add(User(3, 'Min', 22));
+  await db.delete(1);
+  // await db.update(User(5, 'Aung Ko Ko', 20));
 
-  print('deleted: ${await db.delete(2)}');
+  final list = await db.getAll();
+  print(list);
 
-  print(await db.getAll());
-  // await db.changePath('user2.db');
+  // db close
+  await db.close();
+}
 
-  // await db.insert(User(1, 'Aung', 20));
-  // await db.insert(User(2, 'Su', 21));
-  // await db.insert(User(3, 'Min', 22));
-  // print('user 2');
-  // final users2 = await db.getAll();
-  // print(users2);
-
-  // print(users);
-  // final user = await db.get(1);
-  // print(user);
-
-  // final found = await db.query((u) => u.id == 10,);
-  // print(found);
-  // await db.compact();
-  // print('compact');
-  // await db.close();
+class MyListener implements TDBEventListener {
+  @override
+  void onTBDatabaseChanged(TDBEvent event, int? id) {
+    print('DB Event: $event, id: $id');
+  }
 }
 
 class UserDB extends TDB<User> {
+  // singel ton pattern
+  static UserDB? _instance;
+  UserDB._();
+  factory UserDB() {
+    return _instance ??= UserDB._();
+  }
+
   @override
   User fromMap(Map<String, dynamic> map) {
     return User.fromMap(map);

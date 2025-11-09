@@ -4,12 +4,14 @@ import 'dart:typed_data';
 
 import 'package:t_db/src/db_meta_store.dart';
 import 'package:t_db/src/record.dart';
+import 'package:t_db/src/t_db_event_listener.dart';
 
 abstract class TDB<T> {
   final Map<int, int> _index = {}; // id → offset
   int _lastId = 0;
   late RandomAccessFile _file;
   late DBMetaStore _metaStore;
+  static bool isShowDebugLog = true;
 
   /// Convert T instance to [Map<String, dynamic>] (for binary storage)
   Map<String, dynamic> toMap(T value);
@@ -21,7 +23,8 @@ abstract class TDB<T> {
   /// Assign ID to the instance (for insert)
   void setId(T value, int id);
 
-  Future<void> open(String path) async {
+  Future<void> open(String path, {bool isShowDebugLog = true}) async {
+    TDB.isShowDebugLog = isShowDebugLog;
     final file = File(path);
     if (!await file.exists()) {
       await file.create(recursive: true);
@@ -45,6 +48,27 @@ abstract class TDB<T> {
     return fromMap(jsonDecode(utf8.decode(data)));
   }
 
+  Stream<T> getByStream(int id) async* {
+    final offset = _index[id];
+    if (offset == null) return;
+
+    final raf = await File(_file.path).open();
+    try {
+      await raf.setPosition(offset);
+
+      final lengthBytes = await raf.read(4);
+      if (lengthBytes.length < 4) return;
+      final length = ByteData.sublistView(lengthBytes).getUint32(0);
+
+      final data = await raf.read(length);
+      if (data.length < length) return;
+
+      yield fromMap(jsonDecode(utf8.decode(data)));
+    } finally {
+      await raf.close();
+    }
+  }
+
   /// ✅ Get all
   Future<List<T>> getAll() async {
     final file = File(_file.path);
@@ -65,8 +89,36 @@ abstract class TDB<T> {
     return users;
   }
 
-  /// ✅ Auto increment ID + Insert
-  Future<T> insert(T value) async {
+  /// Lazy DB read: stream records one by one
+  Stream<T> getAllLazyStream() async* {
+    final raf = await File(_file.path).open();
+    try {
+      for (final entry in _index.entries) {
+        final offset = entry.value;
+
+        // move to record offset
+        await raf.setPosition(offset);
+
+        // read record length
+        final lenBytes = await raf.read(4);
+        if (lenBytes.length < 4) continue; // corrupted record skip
+
+        final length = ByteData.sublistView(lenBytes).getUint32(0, Endian.big);
+
+        // read data
+        final data = await raf.read(length);
+        if (data.length < length) continue; // corrupted record skip
+
+        // decode & yield
+        yield fromMap(jsonDecode(utf8.decode(data)));
+      }
+    } finally {
+      await raf.close();
+    }
+  }
+
+  /// ✅ Auto increment ID + add
+  Future<T> add(T value) async {
     final id = ++_lastId;
     setId(value, id);
 
@@ -75,6 +127,9 @@ abstract class TDB<T> {
     await _file.writeFrom(bytes);
     _index[getId(value)] = offset;
     await _saveMeta(); // ✅ Save meta after insert
+    // check if compaction needed
+    await _maybeCompact();
+    notify(TDBEvent.add, getId(value));
     return value;
   }
 
@@ -88,6 +143,9 @@ abstract class TDB<T> {
     // Index ကို update လုပ်
     _index[getId(value)] = offset;
     await _saveMeta(); // ✅ Save meta after insert
+    // check if compaction needed
+    await _maybeCompact();
+    notify(TDBEvent.update, getId(value));
     return true;
   }
 
@@ -97,6 +155,9 @@ abstract class TDB<T> {
     _index.remove(id);
     // file ထဲကနေ မဖျက်သေးပါ (Garbage collection နောက်မှ)
     await _saveMeta(); // ✅ Save meta after insert
+    // check if compaction needed
+    await _maybeCompact();
+    notify(TDBEvent.delete, id);
     return true;
   }
 
@@ -104,6 +165,12 @@ abstract class TDB<T> {
   Future<List<T>> query(bool Function(T value) test) async {
     final all = await getAll();
     return all.where(test).toList();
+  }
+
+  Stream<T> queryStream(bool Function(T value) test) async* {
+    await for (final record in getAllLazyStream()) {
+      if (test(record)) yield record;
+    }
   }
 
   Future<void> close() async => _file.close();
@@ -118,8 +185,7 @@ abstract class TDB<T> {
 
     // Save to binary .lock file
     await _metaStore.save();
-    // check if compaction needed
-    await _maybeCompact();
+    _showLog('[_saveMeta]: _metaStore.save');
   }
 
   Future<void> _loadMeta() async {
@@ -134,12 +200,12 @@ abstract class TDB<T> {
         _index.addAll(_metaStore.index);
       } else {
         // .lock file မရှိရင် fallback
-        print('Meta file not found. Rebuilding index from data file...');
+        _showLog('Meta file not found. Rebuilding index from data file...');
         await rebuildIndex();
         await _saveMeta(); // rebuildပြီး save back to .lock
       }
     } catch (e) {
-      print('Meta load failed: $e. Rebuilding index...');
+      _showLog('Meta load failed: $e. Rebuilding index...');
       await rebuildIndex();
       await _saveMeta();
     }
@@ -191,6 +257,7 @@ abstract class TDB<T> {
 
     // update meta store
     _metaStore = DBMetaStore(newPath);
+    _showLog('[changePath]: newPath: $newPath');
 
     // load or rebuild meta
     try {
@@ -200,7 +267,7 @@ abstract class TDB<T> {
         ..clear()
         ..addAll(_metaStore.index);
     } catch (e) {
-      print('Meta load failed: $e. Rebuilding index...');
+      _showLog('Meta load failed: $e. Rebuilding index...');
       await rebuildIndex();
       await _saveMeta();
     }
@@ -263,4 +330,37 @@ abstract class TDB<T> {
       ..addAll(newIndex);
     await _saveMeta();
   }
+
+  ///
+  /// Database Listener
+  ///
+  final List<TDBEventListener> _listener = [];
+  void addListener(TDBEventListener listener) {
+    _listener.add(listener);
+  }
+
+  void removeListener(TDBEventListener listener) {
+    _listener.remove(listener);
+  }
+
+  void notify(TDBEvent event, int? id) {
+    for (var listener in _listener) {
+      listener.onTBDatabaseChanged(event, id);
+    }
+  }
+
+  // log
+  void _showLog(String message) {
+    if (isShowDebugLog) {
+      _logFunction?.call(message);
+    }
+  }
+
+  TDBLogFunction? _logFunction;
+
+  void onDebugLog(TDBLogFunction logFunc) {
+    _logFunction = logFunc;
+  }
 }
+
+typedef TDBLogFunction = Function(String message);
