@@ -35,8 +35,23 @@ abstract class TDB<T> {
     await _loadMeta();
   }
 
+  bool get isDBInitialized {
+    try {
+      _file; // access once
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  String get _getUsage {
+    return 'await db.open("apyar.db")';
+  }
+
   /// ✅ Get by ID
   Future<T?> get(int id) async {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     final offset = _index[id];
     if (offset == null) return null;
     final raf = await File(_file.path).open();
@@ -49,6 +64,8 @@ abstract class TDB<T> {
   }
 
   Stream<T> getByStream(int id) async* {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     final offset = _index[id];
     if (offset == null) return;
 
@@ -71,6 +88,8 @@ abstract class TDB<T> {
 
   /// ✅ Get all
   Future<List<T>> getAll() async {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     final file = File(_file.path);
     final raf = await file.open();
     final users = <T>[];
@@ -91,6 +110,8 @@ abstract class TDB<T> {
 
   /// Lazy DB read: stream records one by one
   Stream<T> getAllLazyStream() async* {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     final raf = await File(_file.path).open();
     try {
       for (final entry in _index.entries) {
@@ -118,7 +139,9 @@ abstract class TDB<T> {
   }
 
   /// ✅ Auto increment ID + add
-  Future<T> add(T value) async {
+  Future<T> add(T value, {bool maybeCompact = false}) async {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     final id = ++_lastId;
     setId(value, id);
 
@@ -128,13 +151,49 @@ abstract class TDB<T> {
     _index[getId(value)] = offset;
     await _saveMeta(); // ✅ Save meta after insert
     // check if compaction needed
-    await _maybeCompact();
+    if (maybeCompact) {
+      await _maybeCompact();
+    }
     notify(TDBEvent.add, getId(value));
     return value;
   }
 
+  Future<void> addAll(List<T> values, {bool maybeCompact = false}) async {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
+    final fileLength = await _file.length();
+    int offset = fileLength;
+
+    final buffer = BytesBuilder();
+
+    for (final value in values) {
+      final id = ++_lastId;
+      setId(value, id);
+
+      final bytes = encodeRecord(toMap(value));
+      _index[getId(value)] = offset;
+      offset += bytes.length;
+      buffer.add(bytes);
+      // Notify
+      notify(TDBEvent.add, getId(value));
+    }
+
+    // Write all at once
+    await _file.writeFrom(buffer.toBytes());
+
+    // Save meta once only
+    await _saveMeta();
+
+    // Compact check only once
+    if (maybeCompact) {
+      await _maybeCompact();
+    }
+  }
+
   /// ✅ Update record by ID
-  Future<bool> update(T value) async {
+  Future<bool> update(T value, {bool maybeCompact = false}) async {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     if (!_index.containsKey(getId(value))) return false;
     // Append new data at end (overwrite မလုပ်ပါ)
     final bytes = encodeRecord(toMap(value));
@@ -144,30 +203,40 @@ abstract class TDB<T> {
     _index[getId(value)] = offset;
     await _saveMeta(); // ✅ Save meta after insert
     // check if compaction needed
-    await _maybeCompact();
+    if (maybeCompact) {
+      await _maybeCompact();
+    }
     notify(TDBEvent.update, getId(value));
     return true;
   }
 
   /// ✅ Delete record by ID (soft delete)
-  Future<bool> delete(int id) async {
+  Future<bool> delete(int id, {bool maybeCompact = false}) async {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     if (!_index.containsKey(id)) return false;
     _index.remove(id);
     // file ထဲကနေ မဖျက်သေးပါ (Garbage collection နောက်မှ)
     await _saveMeta(); // ✅ Save meta after insert
     // check if compaction needed
-    await _maybeCompact();
+    if (maybeCompact) {
+      await _maybeCompact();
+    }
     notify(TDBEvent.delete, id);
     return true;
   }
 
   /// ✅ Query/filter support
   Future<List<T>> query(bool Function(T value) test) async {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     final all = await getAll();
     return all.where(test).toList();
   }
 
   Stream<T> queryStream(bool Function(T value) test) async* {
+    if (!isDBInitialized) throw Exception(_getUsage);
+
     await for (final record in getAllLazyStream()) {
       if (test(record)) yield record;
     }
@@ -274,7 +343,7 @@ abstract class TDB<T> {
   }
 
   ///
-  /// ✅ auto Remove deleted records and rebuild file
+  /// ✅ auto Remove deleted records and rebuild db file
   ///
   Future<void> _maybeCompact() async {
     final deletedRatio = 1 - _index.length / _lastId;
@@ -285,7 +354,7 @@ abstract class TDB<T> {
   }
 
   ///
-  /// ✅ Remove deleted records and rebuild file
+  /// ✅ Remove deleted records and rebuild db file
   ///
   Future<void> compact() async {
     final tempFile = File('${_file.path}.tmp');
