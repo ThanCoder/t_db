@@ -36,10 +36,10 @@ class MyListener implements TDBEventListener {
 class UserDB extends TDB<User> {
   // singel ton pattern
   static UserDB? _instance;
-  UserDB._();
-  factory UserDB() {
-    return _instance ??= UserDB._();
-  }
+
+  UserDB({super.isDataCompress = false});
+
+  factory UserDB.getInstance() => _instance ??= UserDB();
 
   @override
   User fromMap(Map<String, dynamic> map) {

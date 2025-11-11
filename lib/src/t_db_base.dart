@@ -12,6 +12,9 @@ abstract class TDB<T> {
   late RandomAccessFile _file;
   late DBMetaStore _metaStore;
   static bool isShowDebugLog = true;
+  final bool isDataCompress;
+
+  TDB({required this.isDataCompress});
 
   /// Convert T instance to [Map<String, dynamic>] (for binary storage)
   Map<String, dynamic> toMap(T value);
@@ -56,11 +59,23 @@ abstract class TDB<T> {
     if (offset == null) return null;
     final raf = await File(_file.path).open();
     await raf.setPosition(offset);
+    // Read 4-byte length
     final lengthBytes = await raf.read(4);
-    final length = ByteData.sublistView(lengthBytes).getUint32(0);
-    final data = await raf.read(length);
+    final length = ByteData.sublistView(lengthBytes).getUint32(0, Endian.big);
+
+    // Read data bytes
+    final dataBytes = await raf.read(length);
+
+    // Combine length + data
+    final recordBytes = Uint8List.fromList([...lengthBytes, ...dataBytes]);
+
+    // Decode safely
+    final map = isDataCompress
+        ? decodeRecordCompress(recordBytes)
+        : decodeRecord(recordBytes);
+
     await raf.close();
-    return fromMap(jsonDecode(utf8.decode(data)));
+    return fromMap(map);
   }
 
   Stream<T> getByStream(int id) async* {
@@ -74,13 +89,20 @@ abstract class TDB<T> {
       await raf.setPosition(offset);
 
       final lengthBytes = await raf.read(4);
-      if (lengthBytes.length < 4) return;
-      final length = ByteData.sublistView(lengthBytes).getUint32(0);
+      final length = ByteData.sublistView(lengthBytes).getUint32(0, Endian.big);
 
-      final data = await raf.read(length);
-      if (data.length < length) return;
+      // Read data bytes
+      final dataBytes = await raf.read(length);
 
-      yield fromMap(jsonDecode(utf8.decode(data)));
+      // Combine length + data
+      final recordBytes = Uint8List.fromList([...lengthBytes, ...dataBytes]);
+
+      // Decode safely
+      final map = isDataCompress
+          ? decodeRecordCompress(recordBytes)
+          : decodeRecord(recordBytes);
+
+      yield fromMap(map);
     } finally {
       await raf.close();
     }
@@ -97,11 +119,22 @@ abstract class TDB<T> {
     for (final entry in _index.entries) {
       final offset = entry.value;
       await raf.setPosition(offset);
+      // Read 4-byte length
       final lengthBytes = await raf.read(4);
-      final length = ByteData.sublistView(lengthBytes).getUint32(0);
-      final data = await raf.read(length);
-      final user = fromMap(jsonDecode(utf8.decode(data)));
-      users.add(user);
+      final length = ByteData.sublistView(lengthBytes).getUint32(0, Endian.big);
+
+      // Read data bytes
+      final dataBytes = await raf.read(length);
+
+      // Combine length + data
+      final recordBytes = Uint8List.fromList([...lengthBytes, ...dataBytes]);
+
+      // Decode safely
+      final map = isDataCompress
+          ? decodeRecordCompress(recordBytes)
+          : decodeRecord(recordBytes);
+
+      users.add(fromMap(map));
     }
 
     await raf.close();
@@ -120,18 +153,25 @@ abstract class TDB<T> {
         // move to record offset
         await raf.setPosition(offset);
 
-        // read record length
-        final lenBytes = await raf.read(4);
-        if (lenBytes.length < 4) continue; // corrupted record skip
+        // Read 4-byte length
+        final lengthBytes = await raf.read(4);
+        final length = ByteData.sublistView(
+          lengthBytes,
+        ).getUint32(0, Endian.big);
 
-        final length = ByteData.sublistView(lenBytes).getUint32(0, Endian.big);
+        // Read data bytes
+        final dataBytes = await raf.read(length);
 
-        // read data
-        final data = await raf.read(length);
-        if (data.length < length) continue; // corrupted record skip
+        // Combine length + data
+        final recordBytes = Uint8List.fromList([...lengthBytes, ...dataBytes]);
+
+        // Decode safely
+        final map = isDataCompress
+            ? decodeRecordCompress(recordBytes)
+            : decodeRecord(recordBytes);
 
         // decode & yield
-        yield fromMap(jsonDecode(utf8.decode(data)));
+        yield fromMap(map);
       }
     } finally {
       await raf.close();
@@ -145,7 +185,9 @@ abstract class TDB<T> {
     final id = ++_lastId;
     setId(value, id);
 
-    final bytes = encodeRecord(toMap(value));
+    final bytes = isDataCompress
+        ? encodeRecordCompress(toMap(value))
+        : encodeRecord(toMap(value));
     final offset = await _file.length();
     await _file.writeFrom(bytes);
     _index[getId(value)] = offset;
@@ -170,7 +212,9 @@ abstract class TDB<T> {
       final id = ++_lastId;
       setId(value, id);
 
-      final bytes = encodeRecord(toMap(value));
+      final bytes = isDataCompress
+          ? encodeRecordCompress(toMap(value))
+          : encodeRecord(toMap(value));
       _index[getId(value)] = offset;
       offset += bytes.length;
       buffer.add(bytes);
@@ -196,7 +240,9 @@ abstract class TDB<T> {
 
     if (!_index.containsKey(getId(value))) return false;
     // Append new data at end (overwrite မလုပ်ပါ)
-    final bytes = encodeRecord(toMap(value));
+    final bytes = isDataCompress
+        ? encodeRecordCompress(toMap(value))
+        : encodeRecord(toMap(value));
     final offset = await _file.length();
     await _file.writeFrom(bytes);
     // Index ကို update လုပ်
