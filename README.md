@@ -6,16 +6,16 @@ TDB is a high‑performance, append‑only binary database engine written in pur
 
 ## Version Compatibility
 
-**Current Database Version: `3.0.0`**
+**Current Database Version: `1.0.0`**
 
-Starting from version **3.0.0**, the database format has been fully updated.
+Starting from version **1.0.0**, the database format has been fully updated.
 Older database versions are **no longer supported** and **cannot be opened or migrated** automatically.
 
 If you attempt to open a database created with a previous version, the system will reject it for compatibility and safety reasons.
 
 **Important Notes:**
 
-- Databases created with version **3.0.0 and above** are fully compatible with future releases.
+- Databases created with version **1.0.0 and above** are fully compatible with future releases.
 - Databases created with versions **below 3.0.0** must be recreated or manually migrated.
 
 ## ✅ Features
@@ -39,7 +39,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  t_db: ^3.0.0
+  t_db: ^1.0.0
 ```
 
 ---
