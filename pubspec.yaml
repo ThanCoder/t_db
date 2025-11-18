@@ -1,6 +1,6 @@
 name: t_db
 description: TDB<T> is a base abstract class for a generic binary database.It is designed to provide type-safe, object-oriented (OOP) database operations for any user-defined type `T`.
-version: 2.0.0
+version: 3.0.0
 repository: https://github.com/ThanCoder/t_db
 
 environment:

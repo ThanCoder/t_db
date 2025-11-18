@@ -1,166 +1,81 @@
-# `TDB<T>` - Dart File-Based Custom Database
+# TDB — Lightweight Binary Database for Dart
 
-`TDB<T>` သည် Dart နှင့် Flutter အတွက် အသုံးပြုနိုင်သည့် generic, file-based custom database ဖြစ်သည်။  
-`TDB<T>` is a generic, file-based custom database suitable for Dart and Flutter applications.
-
-Object-based CRUD operations များအတွက် ဖန်တီးထားပြီး 2GB+ အရွယ်အစား database များကိုလည်း support လုပ်နိုင်သည်။  
-It is designed for object-based CRUD operations and supports large databases (2GB+).
+TDB is a high‑performance, append‑only binary database engine written in pure Dart. It is designed for speed, low memory usage, and easy integration into Flutter or server applications. TDB supports custom data models using adapters, auto‑increment IDs, record querying, event listeners, and automatic compaction.
 
 ---
 
-## Features / အင်္ဂါရပ်များ
+## Version Compatibility
 
-- **Generic Type Support / အမျိုးအစား Generic အထောက်အပံ့**  
-  Type `T` မည်သည့် object မဆို CRUD operations လုပ်နိုင်သည်။  
-  Supports object-based operations for any type `T`.
+**Current Database Version: `3.0.0`**
 
-- **File Storage / ဖိုင်သိုလှောင်မှု**  
-  Records များကို binary format ဖြင့်သိမ်းဆည်းထားသည်။  
-  Records are stored in binary format.
+Starting from version **3.0.0**, the database format has been fully updated.
+Older database versions are **no longer supported** and **cannot be opened or migrated** automatically.
 
-  `.lock` index file က `id → file offset` mapping ကို ထိန်းသိမ်းပြီး fast access ကို support လုပ်သည်။  
-  A separate `.lock` index file keeps `id → file offset` mapping for fast access.
+If you attempt to open a database created with a previous version, the system will reject it for compatibility and safety reasons.
 
-- **Indexing & Auto-Increment IDs / အညွှန်း & Auto-Increment ID**  
-  `_index` map က record offsets များကို ထိန်းသိမ်းသည်။  
-  The `_index` map maintains record offsets.
+**Important Notes:**
 
-  `_lastId` က auto-increment ID ကို track လုပ်သည်။  
-  `_lastId` tracks auto-increment IDs.
+- Databases created with version **3.0.0 and above** are fully compatible with future releases.
+- Databases created with versions **below 3.0.0** must be recreated or manually migrated.
 
-- **CRUD Operations / CRUD လုပ်ဆောင်ချက်များ**  
-  `add(T value)` → record ကို insert လုပ်ပြီး auto-assigned ID နှင့် metadata ကို save လုပ်သည်။  
-  `add(T value)` → Inserts a record with an auto-assigned ID and saves metadata.
+## ✅ Features
 
-  `get(int id)` → ID ဖြင့် single record ကို fetch လုပ်သည်။  
-  `get(int id)` → Fetches a single record by ID.
-
-  `getAll()` → record အားလုံးကို list အဖြစ် return လုပ်သည်။  
-  `getAll()` → Returns all records as a list.
-
-  `getAllLazyStream()` → memory-efficient lazy streaming support  
-  `getAllLazyStream()` → Streams records lazily for memory efficiency.
-
-  `update(T value)` → new record ကို append လုပ်ပြီး index ကို update လုပ်သည်။  
-  `update(T value)` → Appends a new record and updates the index.
-
-  `delete(int id)` → soft delete (index updated, data file ထဲရှိသေးသည်)  
-  `delete(int id)` → Soft deletes a record (index updated, data remains until compaction).
-
-- **Query Support / Query လုပ်ဆောင်ချက်**  
-  `query()` → function ဖြင့် records filter လုပ်နိုင်သည်။  
-  `query()` → Filters records using a function.
-
-  `queryStream()` → filtered records ကို stream လုပ်၍ရနိုင်သည်။  
-  `queryStream()` → Streams filtered records.
-
-- **Compaction / ဖိုင်သန့်စင်မှု**  
-  `_maybeCompact()` → database သန့်စင်ရန် အလိုအလျောက်စစ်ဆေးသည်။  
-  `_maybeCompact()` → Automatically checks if compaction is needed.
-
-  `compact()` → deleted records များကိုဖယ်ရှားပြီး DB file ကို rebuild လုပ်သည်။  
-  `compact()` → Rebuilds the DB file, removing deleted records.
-
-- **File Path Change / ဖိုင်လမ်းကြောင်းပြောင်းခြင်း**  
-  `changePath()` → database file လမ်းကြောင်းကို ပြောင်းပြီး meta reload လုပ်နိုင်သည်။  
-  `changePath()` → Changes the database file location and reloads meta.
-
-- **Event Listener / အဖြစ်အပျက် နားထောင်သူ**  
-  `_listener` → DB ပြောင်းလဲမှု (add, update, delete) ကို subscriber များအား notify လုပ်သည်။  
-  `_listener` → Notifies subscribers of DB changes (add, update, delete).
+- **Pure Dart implementation** — No native dependencies
+- **Binary storage format** — Fast read/write
+- **Append‑only engine** — Durable and efficient
+- **Custom data type support** using `TDAdapter<T>`
+- **Auto‑increment IDs** for all records
+- **Box-based access** similar to Hive (e.g., `db.getBox<User>()`)
+- **Query and streaming API**
+- **Event listeners** for add/update/delete
+- **Automatic compaction** to reduce file size
+- **Backup support during compaction**
 
 ---
 
-## Usage Example (အသုံးပြုနည်း)
+## 📦 Installation
 
-```Dart
-final db = UserDB();
-await db.open('user.db');
+Add to `pubspec.yaml`:
 
-// debug log
-db.onDebugLog((message) {
-  print('[Debug Log]: $message');
-});
-
-// Add listener
-db.addListener(MyListener());
-
-// add
-await db.add(User(1, 'Aung', 20));
-await db.add(User(2, 'Su', 21));
-await db.add(User(3, 'Min', 22));
-
-// update
-await db.update(User(2, 'old su and new Su Su', 21));
-
-// delete
-await await db.delete(2)
-
-// change db path
-await db.changePath('user2.db');
-//get id
-final user = await db.get(1);
-// get all
-final users = await db.getAll();
-//query
-final found = await db.query((value) => value.id == 10);
-
-// Lazy stream
-await for (final u in db.getAllLazyStream()) {
-  print(u.name);
-}
-
-// db close
-await db.close();
+```yaml
+dependencies:
+  t_db: ^3.0.0
 ```
 
-## Query && All && getOne
+---
 
-```Dart
-// nomal
-final users = await db.getAll();
-final found = await db.query((value) => value.id == 1);
-final user = await db.get(1);
+## 🚀 Quick Start
 
-// big data size
-// all stream
-await for (final user in db.getAllLazyStream()) {
-print('User: ${user.id} - ${user.name}');
-}
-// query stream
-await for (final user in db.queryStream((value) => value.id == 1)) {
-print('User: ${user.id} - ${user.name}');
-}
+### 1. Create Model & Adapter
 
-// ✅ Works fine, but single record → 1 element stream
-await for (final user in db.getByStream(42)) {
-  print('User: ${user.id} - ${user.name}');
-}
-```
+```dart
+class User {
+  final int autoId; //need field for autoId
+  final String name;
+  User({this.autoId = 0, required this.name});
 
-## Adapter or Database Class
-
-```Dart
-class UserDB extends TDB<User> {
-  // single ton pattern
-  static UserDB? _instance;
-  UserDB._();
-  factory UserDB() {
-    return _instance ??= UserDB._();
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{'autoId': autoId, 'name': name};
   }
+
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User(autoId: map['autoId'] as int, name: map['name'] as String);
+  }
+  @override
+  String toString() {
+    return 'ID: $autoId - Name: $name';
+  }
+}
+
+class UserAdapter extends TDAdapter<User> {
   @override
   User fromMap(Map<String, dynamic> map) {
     return User.fromMap(map);
   }
 
   @override
-  int getId(User value) {
-    return value.id;
-  }
-
-  @override
-  void setId(User value, int id) {
-    value.id = id;
+  int getUniqueFieldId() {
+    return 1; // must be unique for each model
   }
 
   @override
@@ -168,65 +83,424 @@ class UserDB extends TDB<User> {
     return value.toMap();
   }
 }
+```
 
-class User {
-  int id;
-  String name;
-  int age;
+---
 
-  User(this.id, this.name, this.age);
+### 2. Open Database
 
-  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'age': age};
+```dart
+final db = TDB.getInstance();
+await db.open('test.db');
 
-  factory User.fromMap(Map<String, dynamic> map) =>
-      User(map['id'], map['name'], map['age']);
-  @override
-  String toString() {
-    return 'id: $id - name: $name - age:$age\n';
-  }
+db.setAdapter<User>(UserAdapter());
+```
+
+---
+
+## ✨ Basic Operations
+
+### Add
+
+```dart
+final id = await db.add<User>(User(name: 'Than'));
+printf(id); // auto-increment ID
+```
+
+### Get All
+
+```dart
+final users = await db.getAll<User>();
+```
+
+### Query
+
+```dart
+final result = await db.queryAll<User>((u) => u.name.startsWith('T'));
+```
+
+### Update
+
+```dart
+await db.updateById<User>(1, User(name: 'Updated'));
+```
+
+### Delete
+
+```dart
+await db.deleteById<User>(1);
+```
+
+---
+
+## 📦 Box API
+
+`TDBox<T>` is a typed data container created automatically when you call `db.setAdapter<T>()`.
+It provides an easy, safe CRUD interface on top of the TDB core.
+
+---
+
+> **Note About `autoId` Field**
+>
+> Every model class used with TDB **must include an `autoId` field**.
+> This field will be automatically populated by the database during insertion.
+>
+> Example:
+>
+> ```dart
+> class User {
+>   final int autoId;     // MUST exist — TDB writes newId into this field
+>   final String name;
+>
+>   User({ this.autoId = 0, required this.name });
+> }
+> ```
+>
+> If `autoId` is missing:
+>
+> - The database cannot assign a generated ID back into the object
+> - Update / Delete operations may not function correctly
+> - Querying by ID becomes impossible
+
+`TDBox<T>` is a typed data container created automatically when you call `db.setAdapter<T>()`.
+It provides an easy, safe CRUD interface on top of the TDB core.
+
+---
+
+### 🔧 How Box Works Internally
+
+A Box is connected to:
+
+- the database instance (`TDB`)
+- the registered adapter for type `T`
+
+When you call:
+
+```dart
+final box = db.getBox<User>();
+```
+
+TDB internally maps:
+
+- adapter → serialization
+- box → CRUD access by type
+
+Each Box only accesses records that match its adapter's unique field ID.
+
+---
+
+### 📌 TDBox<T> Class Structure
+
+```dart
+class TDBox<T> {
+  final TDB _db;
+  TDBox(this._db);
+
+  Future<List<T>> getAll();
+  Future<List<T>> queryAll(bool Function(T value) test);
+  Stream<T> getAllStream();
+  Stream<T> queryAllStream(bool Function(T value) test);
+
+  Future<int> add(T value);
+  Future<void> addAll(List<T> values);
+  Future<bool> deleteById(int id);
+  Future<void> deleteAll(List<int> idList);
+  Future<bool> updateById(int id, T value);
+
+  final List<TBoxEventListener> _listener = [];
+  void addListener(TBoxEventListener listener);
+  void removeListener(TBoxEventListener listener);
+  void notify(TBEventType event, int? id);
 }
 ```
 
-## Single Ton
+---
 
-```Dart
-//singel ton
-final db1 = UserDB(); // MyUserDB extends TDB<User>
-final db2 = UserDB();
-print(identical(db1, db2)); // true → တစ်ခုတည်း instance
+(Similar to Hive)
+TDB provides a simple Box API through `TDBox<T>`.
+A Box is automatically created when you call `db.setAdapter<T>()`.
+
+### Creating and Using a Box
+
+```dart
+final userBox = db.getBox<User>();
 ```
 
-## Remove deleted records and rebuild file
+### Box Methods
 
-```Dart
-// Remove deleted records and rebuild file
-// don't need to used.
+`TDBox<T>` provides convenient CRUD and query helpers:
+
+#### Get All
+
+```dart
+final users = await userBox.getAll();
+```
+
+#### Query
+
+```dart
+final adults = await userBox.queryAll((u) => u.age >= 18);
+```
+
+#### Stream All
+
+```dart
+await for (final user in userBox.getAllStream()) {
+  print(user);
+}
+```
+
+#### Stream Query
+
+```dart
+await for (final user in userBox.queryAllStream((u) => u.isActive)) {}
+```
+
+#### Add
+
+```dart
+final id = await userBox.add(User(name: "Aung"));
+```
+
+#### Add Multiple
+
+```dart
+await userBox.addAll([user1, user2, user3]);
+```
+
+#### Update
+
+```dart
+await userBox.updateById(1, User(name: "Updated"));
+```
+
+#### Delete
+
+```dart
+await userBox.deleteById(3);
+```
+
+#### Delete Multiple
+
+```dart
+await userBox.deleteAll([1, 2, 3]);
+```
+
+---
+
+## 🔔 Box Event Listener
+
+`TDBox<T>` supports reactive data listening.
+Events: `add`, `update`, `delete`.
+
+### Add Listener
+
+```dart
+userBox.addListener(TBoxEventListener(
+  onTBoxDatabaseChanged: (event, id) {
+    print('Box event: $event  id: $id');
+  },
+));
+```
+
+### Remove Listener
+
+```dart
+userBox.removeListener(listener);
+```
+
+---
+
+(Similar to Hive)
+When you register an adapter, TDB automatically creates a box:
+
+```dart
+final userBox = db.getBox<User>();
+```
+
+You can listen for changes:
+
+```dart
+userBox.stream.listen((event) {
+  print(event.type);   // add, delete, update
+  print(event.id);      // affected record
+});
+```
+
+---
+
+## 🔍 Streaming API
+
+### Read All Stream
+
+```dart
+await for (var user in db.getAllStream<User>()) {
+  print(user.name);
+}
+```
+
+---
+
+## 🧹 Auto Compaction
+
+The database grows over time because of append-only writes. Deleted or updated records are cleaned automatically based on configuration:
+
+```dart
+DBConfig(
+  autoCompact: true,
+  minDeletedCount: 20,
+  minDeletedSize: 4096,
+  saveBackupDBCompact: true,
+);
+```
+
+You can also run compaction manually:
+
+```dart
 await db.compact();
-print('compact');
 ```
 
-## Database Listener
+---
 
-```Dart
-final myListener = MyListener();
-db.addListener(myListener);
+## 🔄 Event Listener
 
-// await db.add(User(1, 'Aung', 20));
-// await db.add(User(2, 'Su', 21));
-// await db.add(User(3, 'Min', 22));
-await db.delete(1);
-await db.update(User(5, 'Aung Ko Ko', 20));
+```dart
+db.addListener(TBEventListener(
+  onTBDatabaseChanged: (event, typeId, id) {
+    print('Event: $event, type: $typeId, id: $id');
+  },
+));
+```
 
-final list = await db.getAll();
-print(list);
+---
 
-// db close
+## 📁 Database Structure
+
+Each record is stored as:
+
+```
+[length][id][typeId][flag][payload]
+```
+
+- `length` — record byte size
+- `id` — auto increment
+- `typeId` — from adapter
+- `flag` — normal or deleted
+- `payload` — compressed or uncompressed map data
+
+---
+
+## 🛑 Closing Database
+
+```dart
 await db.close();
-
-class MyListener implements TDBEventListener {
-  @override
-  void onTBDatabaseChanged(TDBEvent event, int? id) {
-    print('DB Event: $event, id: $id');
-  }
-}
 ```
+
+---
+
+# DBConfig
+
+`DBConfig` defines all configuration options for how the database behaves internally, including versioning, type signature, compaction rules, backups, and locking.
+
+---
+
+## Configuration Fields
+
+### `dbVersion`
+
+- **Type:** `int`
+- **Description:** Database format version.
+  Must fit into **1 byte (0–255)**.
+  Used to validate database compatibility.
+
+### `dbType`
+
+- **Type:** `String`
+- **Expected Length:** **4 bytes**
+- **Default:** `TDBT`
+- Identifies the file as a valid TDB database.
+
+### `saveLocalDBLock`
+
+- **Type:** `bool`
+- When enabled, the engine creates a local lock file to prevent accidental corruption from concurrent access.
+
+### `minDeletedCount`
+
+- **Type:** `int`
+- Minimum number of deleted entries required before auto-compaction can run.
+
+### `minDeletedSize`
+
+- **Type:** `int`
+- Minimum total deleted data size (in bytes) required before auto-compaction can run.
+
+### `saveBackupDBCompact`
+
+- **Type:** `bool`
+- If enabled, a backup file is created each time a compaction occurs.
+
+### `autoCompact`
+
+- **Type:** `bool`
+- When enabled, the database automatically performs compaction after `update` or `delete` operations once thresholds are reached.
+
+---
+
+## Default Configuration
+
+The built-in default settings are:
+
+```dart
+dbVersion: 1,
+dbType: 'TDBT',
+saveLocalDBLock: true,
+minDeletedCount: 100,
+minDeletedSize: 1024 * 1024, // 1MB
+saveBackupDBCompact: true,
+autoCompact: true,
+```
+
+To get the default config:
+
+```dart
+final config = DBConfig.getDefault();
+```
+
+---
+
+## Copying With Modifications
+
+You can easily override specific fields using `copyWith()`:
+
+```dart
+final config = DBConfig.getDefault().copyWith(
+  dbVersion: 2,
+  autoCompact: false,
+);
+```
+
+## 🧪 Safe to Use In:
+
+- Flutter mobile apps
+- Desktop apps
+- CLI tools
+- Local server storage
+
+Not suitable for:
+
+- Multi-process access
+- High-concurrency server DB
+
+---
+
+## 📌 Notes
+
+- Each model **must have a unique `getUniqueFieldId()`**
+- Database is **append-only**, so compaction is necessary
+
+---
+
+## 📄 License
+
+MIT

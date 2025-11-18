@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:t_db/src/core/encoder.dart';
 import 'package:t_db/src/core/rw/binary_rw.dart';
 import 'package:t_db/src/core/type/db_meta.dart';
 import 'package:t_db/src/core/type/db_record.dart';
@@ -10,6 +10,7 @@ class DBLock {
   final File lockFile;
   final bool saveLocalLockFile;
   List<DBRecord> recordList = [];
+  List<int> uniqueFieldIdList = [];
   int lastId = 0;
   int deletedSize = 0;
   int deletedCount = 0;
@@ -23,12 +24,16 @@ class DBLock {
   Future<void> load() async {
     if (lockFile.existsSync() && saveLocalLockFile) {
       // load
-      final source = await lockFile.readAsString();
-      final map = jsonDecode(source) as Map<String, dynamic>;
-      _parse(map);
+      // final source = await lockFile.readAsString();
+      // final map = jsonDecode(source) as Map<String, dynamic>;
+      final raf = await lockFile.open(mode: FileMode.read);
+      final length = bytesToInt4(await raf.read(4));
+      final map = decodeRecord(await raf.read(length));
+      await _parse(map);
+      await raf.close();
       return;
     }
-    await _rebuild();
+    await rebuild();
   }
 
   ///
@@ -37,13 +42,19 @@ class DBLock {
   Future<void> save() async {
     if (!saveLocalLockFile) return;
     final map = {
-      'recordList': recordList.map((e) => e.toMap()).toList(),
       'lastId': lastId,
       'deletedSize': deletedSize,
       'deletedCount': deletedCount,
+      'uniqueFieldIdList': uniqueFieldIdList,
+      'recordList': recordList.map((e) => e.toMap()).toList(),
     };
-    final json = JsonEncoder.withIndent(' ').convert(map);
-    await lockFile.writeAsString(json);
+    // final json = JsonEncoder.withIndent(' ').convert(map);
+    // await lockFile.writeAsString(json);
+    final raf = await lockFile.open(mode: FileMode.write);
+    final mapBytes = encodeRecord(map);
+    await raf.writeFrom(intToBytes4(mapBytes.length));
+    await raf.writeFrom(mapBytes);
+    await raf.close();
   }
 
   ///
@@ -51,22 +62,33 @@ class DBLock {
   ///
   Future<void> _parse(Map<String, dynamic> map) async {
     final list = map['recordList'] as List<dynamic>;
-    recordList = list.map((map) => DBRecord.fromMap(map)).toList();
+    final idList = map['uniqueFieldIdList'] as List<dynamic>;
     lastId = map['lastId'];
     deletedSize = map['deletedSize'];
     deletedCount = map['deletedCount'];
+    uniqueFieldIdList = List<int>.from(idList);
+    recordList = list.map((map) => DBRecord.fromMap(map)).toList();
+
+    await Future.delayed(Duration.zero);
   }
 
   ///
   /// ### Rebuild Lock File From Database
   ///
-  Future<void> _rebuild() async {
+  Future<void> rebuild() async {
+    deletedCount = 0;
+    deletedSize = 0;
+    recordList.clear();
+    uniqueFieldIdList.clear();
+    List<int> fieldList = [];
+
     final raf = await dbFile.open();
     await BinaryRW.readHeader(raf);
 
     while (true) {
       final flag = await raf.readByte();
       if (flag == -1) break; //EOF
+
       final (uniqueFieldId, id, length, dataOffset, _) =
           await BinaryRW.readRecord(raf, skipData: true);
       // is deleted mark
@@ -75,6 +97,7 @@ class DBLock {
         deletedSize += length;
         continue;
       }
+      fieldList.add(uniqueFieldId);
 
       recordList.add(
         DBRecord(
@@ -85,6 +108,7 @@ class DBLock {
         ),
       );
     }
+    uniqueFieldIdList.addAll(fieldList.toSet().toList());
     // last id
     lastId = recordList.isEmpty
         ? 0

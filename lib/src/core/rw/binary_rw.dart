@@ -97,7 +97,7 @@ class BinaryRW {
     final length = bytesToInt4(await raf.read(4));
     final current = await raf.position();
     if (skipData) {
-      await raf.read(current + length);
+      await raf.setPosition(current + length);
     } else {
       data = decodeRecordCompress4(await raf.read(length));
     }
@@ -120,5 +120,60 @@ class BinaryRW {
     final data = decodeRecordCompress4(await raf.read(dataLength));
 
     return data;
+  }
+
+  static Future<void> compact({
+    required File dbFile,
+    bool saveBackup = true,
+  }) async {
+    final raf = await dbFile.open(mode: FileMode.read);
+    final tmpFile = File('${dbFile.path}.tmp');
+    final outRaf = await tmpFile.open(mode: FileMode.writeOnlyAppend);
+    final dbLockFile = File('${dbFile.path}.lock');
+
+    final (magic, version, type) = await BinaryRW.readHeader(raf);
+    await BinaryRW.writeHeader(outRaf, version: version, type: type);
+
+    while (true) {
+      final flag = await raf.readByte();
+      if (flag == -1) break; //EOF
+
+      final uniqueFieldId = bytesToInt4(await raf.read(4));
+      final id = bytesToInt8(await raf.read(8));
+      final length = bytesToInt4(await raf.read(4));
+      final current = await raf.position();
+      // is deleted mark
+      if (DBMeta.isDeleted(flag)) {
+        await raf.setPosition(current + length);
+      } else {
+        final jsonDataBytes = await raf.read(length);
+        // add tem file
+        await outRaf.writeByte(DBMeta.Flag_Active);
+        // unique field id
+        await outRaf.writeFrom(intToBytes4(uniqueFieldId));
+        // db id
+        await outRaf.writeFrom(intToBytes8(id));
+        // write data length
+        await outRaf.writeFrom(intToBytes4(length)); // json length byte
+        // write data
+        await outRaf.writeFrom(jsonDataBytes);
+      }
+    }
+    // close file
+    await raf.close();
+    await outRaf.close();
+    // backup
+    if (saveBackup) {
+      await dbFile.rename('${dbFile.path}.bak');
+    } else {
+      // delete
+      await dbFile.delete();
+    }
+    if (dbLockFile.existsSync()) {
+      await dbLockFile.delete();
+    }
+
+    // rename main db
+    await tmpFile.rename(dbFile.path);
   }
 }

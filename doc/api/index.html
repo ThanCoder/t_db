@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="t_db API docs, for the Dart programming language.">
+  <title>t_db - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li class="self-crumb">t_db package</li>
+  </ol>
+  <div class="self-name">t_db</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="tdb--lightweight-binary-database-for-dart">TDB — Lightweight Binary Database for Dart</h1>
+<p>TDB is a high‑performance, append‑only binary database engine written in pure Dart. It is designed for speed, low memory usage, and easy integration into Flutter or server applications. TDB supports custom data models using adapters, auto‑increment IDs, record querying, event listeners, and automatic compaction.</p>
+<hr>
+<h2 id="version-compatibility">Version Compatibility</h2>
+<p><strong>Current Database Version: <code>3.0.0</code></strong></p>
+<p>Starting from version <strong>3.0.0</strong>, the database format has been fully updated.
+Older database versions are <strong>no longer supported</strong> and <strong>cannot be opened or migrated</strong> automatically.</p>
+<p>If you attempt to open a database created with a previous version, the system will reject it for compatibility and safety reasons.</p>
+<p><strong>Important Notes:</strong></p>
+<ul>
+<li>Databases created with version <strong>3.0.0 and above</strong> are fully compatible with future releases.</li>
+<li>Databases created with versions <strong>below 3.0.0</strong> must be recreated or manually migrated.</li>
+</ul>
+<h2 id="-features">✅ Features</h2>
+<ul>
+<li><strong>Pure Dart implementation</strong> — No native dependencies</li>
+<li><strong>Binary storage format</strong> — Fast read/write</li>
+<li><strong>Append‑only engine</strong> — Durable and efficient</li>
+<li><strong>Custom data type support</strong> using <code>TDAdapter&lt;T&gt;</code></li>
+<li><strong>Auto‑increment IDs</strong> for all records</li>
+<li><strong>Box-based access</strong> similar to Hive (e.g., <code>db.getBox&lt;User&gt;()</code>)</li>
+<li><strong>Query and streaming API</strong></li>
+<li><strong>Event listeners</strong> for add/update/delete</li>
+<li><strong>Automatic compaction</strong> to reduce file size</li>
+<li><strong>Backup support during compaction</strong></li>
+</ul>
+<hr>
+<h2 id="-installation">📦 Installation</h2>
+<p>Add to <code>pubspec.yaml</code>:</p>
+<pre class="language-yaml"><code class="language-yaml">dependencies:
+  t_db: ^3.0.0
+</code></pre>
+<hr>
+<h2 id="-quick-start">🚀 Quick Start</h2>
+<h3 id="1-create-model--adapter">1. Create Model &amp; Adapter</h3>
+<pre class="language-dart"><code class="language-dart">class User {
+  final int autoId; //need field for autoId
+  final String name;
+  User({this.autoId = 0, required this.name});
+
+  Map&lt;String, dynamic&gt; toMap() {
+    return &lt;String, dynamic&gt;{'autoId': autoId, 'name': name};
+  }
+
+  factory User.fromMap(Map&lt;String, dynamic&gt; map) {
+    return User(autoId: map['autoId'] as int, name: map['name'] as String);
+  }
+  @override
+  String toString() {
+    return 'ID: $autoId - Name: $name';
+  }
+}
+
+class UserAdapter extends TDAdapter&lt;User&gt; {
+  @override
+  User fromMap(Map&lt;String, dynamic&gt; map) {
+    return User.fromMap(map);
+  }
+
+  @override
+  int getUniqueFieldId() {
+    return 1; // must be unique for each model
+  }
+
+  @override
+  Map&lt;String, dynamic&gt; toMap(User value) {
+    return value.toMap();
+  }
+}
+</code></pre>
+<hr>
+<h3 id="2-open-database">2. Open Database</h3>
+<pre class="language-dart"><code class="language-dart">final db = TDB.getInstance();
+await db.open('test.db');
+
+db.setAdapter&lt;User&gt;(UserAdapter());
+</code></pre>
+<hr>
+<h2 id="-basic-operations">✨ Basic Operations</h2>
+<h3 id="add">Add</h3>
+<pre class="language-dart"><code class="language-dart">final id = await db.add&lt;User&gt;(User(name: 'Than'));
+printf(id); // auto-increment ID
+</code></pre>
+<h3 id="get-all">Get All</h3>
+<pre class="language-dart"><code class="language-dart">final users = await db.getAll&lt;User&gt;();
+</code></pre>
+<h3 id="query">Query</h3>
+<pre class="language-dart"><code class="language-dart">final result = await db.queryAll&lt;User&gt;((u) =&gt; u.name.startsWith('T'));
+</code></pre>
+<h3 id="update">Update</h3>
+<pre class="language-dart"><code class="language-dart">await db.updateById&lt;User&gt;(1, User(name: 'Updated'));
+</code></pre>
+<h3 id="delete">Delete</h3>
+<pre class="language-dart"><code class="language-dart">await db.deleteById&lt;User&gt;(1);
+</code></pre>
+<hr>
+<h2 id="-box-api">📦 Box API</h2>
+<p><code>TDBox&lt;T&gt;</code> is a typed data container created automatically when you call <code>db.setAdapter&lt;T&gt;()</code>.
+It provides an easy, safe CRUD interface on top of the TDB core.</p>
+<hr>
+<blockquote>
+<p><strong>Note About <code>autoId</code> Field</strong></p>
+<p>Every model class used with TDB <strong>must include an <code>autoId</code> field</strong>.
+This field will be automatically populated by the database during insertion.</p>
+<p>Example:</p>
+<pre class="language-dart"><code class="language-dart">class User {
+  final int autoId;     // MUST exist — TDB writes newId into this field
+  final String name;
+
+  User({ this.autoId = 0, required this.name });
+}
+</code></pre>
+<p>If <code>autoId</code> is missing:</p>
+<ul>
+<li>The database cannot assign a generated ID back into the object</li>
+<li>Update / Delete operations may not function correctly</li>
+<li>Querying by ID becomes impossible</li>
+</ul>
+</blockquote>
+<p><code>TDBox&lt;T&gt;</code> is a typed data container created automatically when you call <code>db.setAdapter&lt;T&gt;()</code>.
+It provides an easy, safe CRUD interface on top of the TDB core.</p>
+<hr>
+<h3 id="-how-box-works-internally">🔧 How Box Works Internally</h3>
+<p>A Box is connected to:</p>
+<ul>
+<li>the database instance (<code>TDB</code>)</li>
+<li>the registered adapter for type <code>T</code></li>
+</ul>
+<p>When you call:</p>
+<pre class="language-dart"><code class="language-dart">final box = db.getBox&lt;User&gt;();
+</code></pre>
+<p>TDB internally maps:</p>
+<ul>
+<li>adapter → serialization</li>
+<li>box → CRUD access by type</li>
+</ul>
+<p>Each Box only accesses records that match its adapter's unique field ID.</p>
+<hr>
+<h3 id="-tdboxt-class-structure">📌 TDBox<t> Class Structure</t></h3>
+<pre class="language-dart"><code class="language-dart">class TDBox&lt;T&gt; {
+  final TDB _db;
+  TDBox(this._db);
+
+  Future&lt;List&lt;T&gt;&gt; getAll();
+  Future&lt;List&lt;T&gt;&gt; queryAll(bool Function(T value) test);
+  Stream&lt;T&gt; getAllStream();
+  Stream&lt;T&gt; queryAllStream(bool Function(T value) test);
+
+  Future&lt;int&gt; add(T value);
+  Future&lt;void&gt; addAll(List&lt;T&gt; values);
+  Future&lt;bool&gt; deleteById(int id);
+  Future&lt;void&gt; deleteAll(List&lt;int&gt; idList);
+  Future&lt;bool&gt; updateById(int id, T value);
+
+  final List&lt;TBoxEventListener&gt; _listener = [];
+  void addListener(TBoxEventListener listener);
+  void removeListener(TBoxEventListener listener);
+  void notify(TBEventType event, int? id);
+}
+</code></pre>
+<hr>
+<p>(Similar to Hive)
+TDB provides a simple Box API through <code>TDBox&lt;T&gt;</code>.
+A Box is automatically created when you call <code>db.setAdapter&lt;T&gt;()</code>.</p>
+<h3 id="creating-and-using-a-box">Creating and Using a Box</h3>
+<pre class="language-dart"><code class="language-dart">final userBox = db.getBox&lt;User&gt;();
+</code></pre>
+<h3 id="box-methods">Box Methods</h3>
+<p><code>TDBox&lt;T&gt;</code> provides convenient CRUD and query helpers:</p>
+<h4 id="get-all-2">Get All</h4>
+<pre class="language-dart"><code class="language-dart">final users = await userBox.getAll();
+</code></pre>
+<h4 id="query-2">Query</h4>
+<pre class="language-dart"><code class="language-dart">final adults = await userBox.queryAll((u) =&gt; u.age &gt;= 18);
+</code></pre>
+<h4 id="stream-all">Stream All</h4>
+<pre class="language-dart"><code class="language-dart">await for (final user in userBox.getAllStream()) {
+  print(user);
+}
+</code></pre>
+<h4 id="stream-query">Stream Query</h4>
+<pre class="language-dart"><code class="language-dart">await for (final user in userBox.queryAllStream((u) =&gt; u.isActive)) {}
+</code></pre>
+<h4 id="add-2">Add</h4>
+<pre class="language-dart"><code class="language-dart">final id = await userBox.add(User(name: "Aung"));
+</code></pre>
+<h4 id="add-multiple">Add Multiple</h4>
+<pre class="language-dart"><code class="language-dart">await userBox.addAll([user1, user2, user3]);
+</code></pre>
+<h4 id="update-2">Update</h4>
+<pre class="language-dart"><code class="language-dart">await userBox.updateById(1, User(name: "Updated"));
+</code></pre>
+<h4 id="delete-2">Delete</h4>
+<pre class="language-dart"><code class="language-dart">await userBox.deleteById(3);
+</code></pre>
+<h4 id="delete-multiple">Delete Multiple</h4>
+<pre class="language-dart"><code class="language-dart">await userBox.deleteAll([1, 2, 3]);
+</code></pre>
+<hr>
+<h2 id="-box-event-listener">🔔 Box Event Listener</h2>
+<p><code>TDBox&lt;T&gt;</code> supports reactive data listening.
+Events: <code>add</code>, <code>update</code>, <code>delete</code>.</p>
+<h3 id="add-listener">Add Listener</h3>
+<pre class="language-dart"><code class="language-dart">userBox.addListener(TBoxEventListener(
+  onTBoxDatabaseChanged: (event, id) {
+    print('Box event: $event  id: $id');
+  },
+));
+</code></pre>
+<h3 id="remove-listener">Remove Listener</h3>
+<pre class="language-dart"><code class="language-dart">userBox.removeListener(listener);
+</code></pre>
+<hr>
+<p>(Similar to Hive)
+When you register an adapter, TDB automatically creates a box:</p>
+<pre class="language-dart"><code class="language-dart">final userBox = db.getBox&lt;User&gt;();
+</code></pre>
+<p>You can listen for changes:</p>
+<pre class="language-dart"><code class="language-dart">userBox.stream.listen((event) {
+  print(event.type);   // add, delete, update
+  print(event.id);      // affected record
+});
+</code></pre>
+<hr>
+<h2 id="-streaming-api">🔍 Streaming API</h2>
+<h3 id="read-all-stream">Read All Stream</h3>
+<pre class="language-dart"><code class="language-dart">await for (var user in db.getAllStream&lt;User&gt;()) {
+  print(user.name);
+}
+</code></pre>
+<hr>
+<h2 id="-auto-compaction">🧹 Auto Compaction</h2>
+<p>The database grows over time because of append-only writes. Deleted or updated records are cleaned automatically based on configuration:</p>
+<pre class="language-dart"><code class="language-dart">DBConfig(
+  autoCompact: true,
+  minDeletedCount: 20,
+  minDeletedSize: 4096,
+  saveBackupDBCompact: true,
+);
+</code></pre>
+<p>You can also run compaction manually:</p>
+<pre class="language-dart"><code class="language-dart">await db.compact();
+</code></pre>
+<hr>
+<h2 id="-event-listener">🔄 Event Listener</h2>
+<pre class="language-dart"><code class="language-dart">db.addListener(TBEventListener(
+  onTBDatabaseChanged: (event, typeId, id) {
+    print('Event: $event, type: $typeId, id: $id');
+  },
+));
+</code></pre>
+<hr>
+<h2 id="-database-structure">📁 Database Structure</h2>
+<p>Each record is stored as:</p>
+<pre class="language-dart"><code>[length][id][typeId][flag][payload]
+</code></pre>
+<ul>
+<li><code>length</code> — record byte size</li>
+<li><code>id</code> — auto increment</li>
+<li><code>typeId</code> — from adapter</li>
+<li><code>flag</code> — normal or deleted</li>
+<li><code>payload</code> — compressed or uncompressed map data</li>
+</ul>
+<hr>
+<h2 id="-closing-database">🛑 Closing Database</h2>
+<pre class="language-dart"><code class="language-dart">await db.close();
+</code></pre>
+<hr>
+<h1 id="dbconfig">DBConfig</h1>
+<p><code>DBConfig</code> defines all configuration options for how the database behaves internally, including versioning, type signature, compaction rules, backups, and locking.</p>
+<hr>
+<h2 id="configuration-fields">Configuration Fields</h2>
+<h3 id="dbversion"><code>dbVersion</code></h3>
+<ul>
+<li><strong>Type:</strong> <code>int</code></li>
+<li><strong>Description:</strong> Database format version.
+Must fit into <strong>1 byte (0–255)</strong>.
+Used to validate database compatibility.</li>
+</ul>
+<h3 id="dbtype"><code>dbType</code></h3>
+<ul>
+<li><strong>Type:</strong> <code>String</code></li>
+<li><strong>Expected Length:</strong> <strong>4 bytes</strong></li>
+<li><strong>Default:</strong> <code>TDBT</code></li>
+<li>Identifies the file as a valid TDB database.</li>
+</ul>
+<h3 id="savelocaldblock"><code>saveLocalDBLock</code></h3>
+<ul>
+<li><strong>Type:</strong> <code>bool</code></li>
+<li>When enabled, the engine creates a local lock file to prevent accidental corruption from concurrent access.</li>
+</ul>
+<h3 id="mindeletedcount"><code>minDeletedCount</code></h3>
+<ul>
+<li><strong>Type:</strong> <code>int</code></li>
+<li>Minimum number of deleted entries required before auto-compaction can run.</li>
+</ul>
+<h3 id="mindeletedsize"><code>minDeletedSize</code></h3>
+<ul>
+<li><strong>Type:</strong> <code>int</code></li>
+<li>Minimum total deleted data size (in bytes) required before auto-compaction can run.</li>
+</ul>
+<h3 id="savebackupdbcompact"><code>saveBackupDBCompact</code></h3>
+<ul>
+<li><strong>Type:</strong> <code>bool</code></li>
+<li>If enabled, a backup file is created each time a compaction occurs.</li>
+</ul>
+<h3 id="autocompact"><code>autoCompact</code></h3>
+<ul>
+<li><strong>Type:</strong> <code>bool</code></li>
+<li>When enabled, the database automatically performs compaction after <code>update</code> or <code>delete</code> operations once thresholds are reached.</li>
+</ul>
+<hr>
+<h2 id="default-configuration">Default Configuration</h2>
+<p>The built-in default settings are:</p>
+<pre class="language-dart"><code class="language-dart">dbVersion: 1,
+dbType: 'TDBT',
+saveLocalDBLock: true,
+minDeletedCount: 100,
+minDeletedSize: 1024 * 1024, // 1MB
+saveBackupDBCompact: true,
+autoCompact: true,
+</code></pre>
+<p>To get the default config:</p>
+<pre class="language-dart"><code class="language-dart">final config = DBConfig.getDefault();
+</code></pre>
+<hr>
+<h2 id="copying-with-modifications">Copying With Modifications</h2>
+<p>You can easily override specific fields using <code>copyWith()</code>:</p>
+<pre class="language-dart"><code class="language-dart">final config = DBConfig.getDefault().copyWith(
+  dbVersion: 2,
+  autoCompact: false,
+);
+</code></pre>
+<h2 id="-safe-to-use-in">🧪 Safe to Use In:</h2>
+<ul>
+<li>Flutter mobile apps</li>
+<li>Desktop apps</li>
+<li>CLI tools</li>
+<li>Local server storage</li>
+</ul>
+<p>Not suitable for:</p>
+<ul>
+<li>Multi-process access</li>
+<li>High-concurrency server DB</li>
+</ul>
+<hr>
+<h2 id="-notes">📌 Notes</h2>
+<ul>
+<li>Each model <strong>must have a unique <code>getUniqueFieldId()</code></strong></li>
+<li>Database is <strong>append-only</strong>, so compaction is necessary</li>
+</ul>
+<hr>
+<h2 id="-license">📄 License</h2>
+<p>MIT</p>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="t_db">
+  <span class="name"><a href="t_db/">t_db</a></span> 
+
+</dt>
+<dd>Support for doing something awesome.
+</dd>
+
+        </dl>
+      </section>
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li class="self-crumb">t_db package</li>
+</ol>
+
+    <h5 class="hidden-xs"><span class="package-name">t_db</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="t_db/">t_db</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+</main>
+<footer>
+  <span class="no-break">
+    t_db
+      3.0.0
+  </span>
+  
+</footer>
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

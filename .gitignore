@@ -8,3 +8,5 @@ pubspec.lock
 user.*
 apyar/*
 apyar*
+test*
+test.db
