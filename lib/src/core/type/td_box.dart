@@ -10,6 +10,14 @@ class TDBox<T> {
     return await _db.getAll<T>();
   }
 
+  Future<T?> getById(int id) async {
+    return await _db.getById<T>(id);
+  }
+
+  Future<T?> getOne(bool Function(T value) test) async {
+    return await _db.getOne<T>(test);
+  }
+
   Future<List<T>> queryAll(bool Function(T value) test) async {
     return await _db.queryAll<T>(test);
   }

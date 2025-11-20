@@ -3,10 +3,9 @@ import 'package:t_db/t_db.dart';
 void main() async {
   final db = TDB.getInstance();
   await db.open(
-    'changed.db',
+    'test.db',
     config: DBConfig.getDefault().copyWith(saveLocalDBLock: false),
   );
-  await db.changePath('test.db');
 
   db.setAdapter<User>(UserAdapter());
   db.setAdapter<Car>(CarAdapter());
@@ -15,40 +14,32 @@ void main() async {
 
   final box = db.getBox<User>();
   final carBox = db.getBox<Car>();
-  box.addListener(BoxListener());
+  // box.addListener(BoxListener());
+
+  // final id = await box.add(User(name: 'ThanCoder'));
+  // await carBox.add(Car(userId: id, name: 'ThanCoder Car'));
+
+  final list = await box.getAll();
+
+  print(list);
+  print(await carBox.getAll());
+
+  if (list.isNotEmpty) {
+    await box.deleteById(list.first.autoId);
+  }
+  // await db.del<User>(1, 1);
 
   print(await box.getAll());
   print(await carBox.getAll());
-  // final res = await carBox.queryAll((value) => value.name.endsWith('Test'),);
-  // print(res);
-  // carBox.getAllStream().listen((data) {
-  //   print(data);
-  // });
 
   // print(await db.getById(4));
 
-  print('lastId: ${db.getLastId}');
-  print('deletedCount: ${db.getDeletedCount}');
-  print('deletedSize: ${db.getDeletedSize}');
-  print('uniqueFieldIdList: ${db.getUniqueFieldIdList}');
+  // print('lastId: ${db.getLastId}');
+  // print('deletedCount: ${db.getDeletedCount}');
+  // print('deletedSize: ${db.getDeletedSize}');
+  // print('uniqueFieldIdList: ${db.getUniqueFieldIdList}');
 
   await db.close();
-}
-
-class BoxListener implements TBoxEventListener {
-  @override
-  void onTBoxDatabaseChanged(TBEventType event, int? id) {
-    print('[BoxListener]: event:$event - id: $id');
-  }
-}
-
-class DBListener implements TBEventListener {
-  @override
-  void onTBDatabaseChanged(TBEventType event, int uniqueFieldId, int? id) {
-    print(
-      '[DBListener]: event:$event - uniqueFieldId: $uniqueFieldId - id: $id',
-    );
-  }
 }
 
 class UserAdapter extends TDAdapter<User> {
@@ -66,6 +57,11 @@ class UserAdapter extends TDAdapter<User> {
   Map<String, dynamic> toMap(User value) {
     return value.toMap();
   }
+
+  @override
+  int getId(User value) {
+    return value.autoId;
+  }
 }
 
 class CarAdapter extends TDAdapter<Car> {
@@ -80,13 +76,30 @@ class CarAdapter extends TDAdapter<Car> {
   }
 
   @override
+  List<HBRelation> relations() {
+    return [
+      HBRelation(
+        parentClass: User,
+        childClass: Car,
+        foreignField: 'userId',
+        onDelete: RelationAction.none,
+      ),
+    ];
+  }
+
+  @override
   Map<String, dynamic> toMap(Car value) {
     return value.toMap();
+  }
+
+  @override
+  int getId(Car value) {
+    return value.autoId;
   }
 }
 
 class User {
-  final int autoId; 
+  final int autoId;
   final String name;
   User({this.autoId = 0, required this.name});
 
@@ -105,18 +118,40 @@ class User {
 
 class Car {
   final int autoId;
+  final int userId;
   final String name;
-  Car({this.autoId = 0, required this.name});
+  Car({this.autoId = 0, required this.userId, required this.name});
+
+  @override
+  String toString() {
+    return 'ID: $autoId - Name: $name userId: $userId';
+  }
 
   Map<String, dynamic> toMap() {
-    return <String, dynamic>{'autoId': autoId, 'name': name};
+    return <String, dynamic>{'autoId': autoId, 'userId': userId, 'name': name};
   }
 
   factory Car.fromMap(Map<String, dynamic> map) {
-    return Car(autoId: map['autoId'] as int, name: map['name'] as String);
+    return Car(
+      autoId: map['autoId'] as int,
+      userId: map['userId'] as int,
+      name: map['name'] as String,
+    );
   }
+}
+
+class BoxListener implements TBoxEventListener {
   @override
-  String toString() {
-    return 'ID: $autoId - Name: $name';
+  void onTBoxDatabaseChanged(TBEventType event, int? id) {
+    print('[BoxListener]: event:$event - id: $id');
+  }
+}
+
+class DBListener implements TBEventListener {
+  @override
+  void onTBDatabaseChanged(TBEventType event, int uniqueFieldId, int? id) {
+    print(
+      '[DBListener]: event:$event - uniqueFieldId: $uniqueFieldId - id: $id',
+    );
   }
 }

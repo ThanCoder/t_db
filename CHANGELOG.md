@@ -1,4 +1,8 @@
-# 1.0.0
+# 1.1.1
+
+- Fixed `DBConfig.saveLocalDBLock` Not Working.
+
+## 1.0.0
 
 ## ✅ Features
 

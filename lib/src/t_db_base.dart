@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:t_db/src/core/db_lock.dart';
 import 'package:t_db/src/core/encoder.dart';
 import 'package:t_db/src/core/rw/binary_rw.dart';
+import 'package:t_db/src/core/rw/db_rw.dart';
 import 'package:t_db/src/core/type/db_config.dart';
 import 'package:t_db/src/core/type/db_meta.dart';
 import 'package:t_db/src/core/type/db_record.dart';
@@ -34,7 +35,11 @@ class TDB {
     dbFile = File(dbPath);
     _config = config ?? DBConfig.getDefault();
 
-    _dbLock = DBLock(dbFile: dbFile, lockFile: File('$dbPath.lock'));
+    _dbLock = DBLock(
+      dbFile: dbFile,
+      lockFile: File('$dbPath.lock'),
+      saveLocalLockFile: _config.saveLocalDBLock,
+    );
     if (!dbFile.existsSync()) {
       final raf = await dbFile.open(mode: FileMode.write);
       await BinaryRW.writeHeader(
@@ -213,11 +218,22 @@ class TDB {
   }
 
   ///
+  /// ## Get Record By Id
+  ///
+  Future<T?> getOne<T>(bool Function(T value) test) async {
+    await for (var value in getAllStream<T>()) {
+      if (test(value)) return value;
+    }
+    return null;
+    // return adapter.fromMap(map);
+  }
+
+  ///
   /// ## Add Record
   ///
   ///Return Added `autoId`
   ///
-  Future<int> add<T>(T value) async {
+  Future<int> add<T>(T value, {bool saveLock = true}) async {
     final adapter = _getAdapter<T>();
     final map = adapter.toMap(value);
 
@@ -238,7 +254,9 @@ class TDB {
         length: length,
       ),
     );
-    await _dbLock.save();
+    if (saveLock) {
+      await _dbLock.save();
+    }
     // notify
     notify<T>(TBEventType.add, adapter.getUniqueFieldId(), newId);
     return newId;
@@ -258,6 +276,7 @@ class TDB {
       _dbLock.lastId++;
       final newId = _dbLock.lastId;
       map['autoId'] = newId;
+
       final (offset, length) = await BinaryRW.writeRecord(
         _raf,
         map: map,
@@ -283,39 +302,27 @@ class TDB {
   ///
   /// ### Deleted Record
   ///
-  Future<bool> deleteById<T>(int id) async {
+  Future<bool> deleteById<T>(int id, {bool saveLock = true}) async {
     final adapter = _getAdapter<T>();
-    final index = _dbLock.recordList.indexWhere((e) => e.id == id);
-    if (index == -1) return false;
-    final record = _dbLock.recordList[index];
 
-    final dataOffset = record.offset;
-    final endPos = await _raf.position();
-    // go to flag
-    await _raf.setPosition(
-      dataOffset - 4 - 8 - 4 - 1,
-    ); // 4=length,8=id,4=uniqueFieldId,1=flag
-    await _raf.writeByte(DBMeta.Flag_Delete);
+    final isDeleted = await DBRW.deleteById(id, raf: _raf, dbLock: _dbLock);
 
-    // go to end
-    await _raf.setPosition(endPos);
-
-    // change memory
-    _dbLock.recordList.removeAt(index);
-    _dbLock.deletedCount++;
-    _dbLock.deletedSize += record.length;
+    // relation
+    await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
 
     // save
-    await _dbLock.save();
+    if (saveLock) {
+      await _dbLock.save();
+    }
     // notify
     notify<T>(TBEventType.delete, adapter.getUniqueFieldId(), id);
     // auto compack
     await _maybeCompact();
-    return true;
+    return isDeleted;
   }
 
   ///
-  /// ### Deleted Record
+  /// ### Deleted All Record
   ///
   Future<bool> deleteAll<T>(List<int> idList) async {
     final adapter = _getAdapter<T>();
@@ -339,6 +346,8 @@ class TDB {
       _dbLock.recordList.removeAt(index);
       _dbLock.deletedCount++;
       _dbLock.deletedSize += record.length;
+      // relation
+      await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
     }
 
     // save
@@ -353,7 +362,7 @@ class TDB {
   ///
   /// ### Update Record
   ///
-  Future<bool> updateById<T>(int id, T value) async {
+  Future<bool> updateById<T>(int id, T value, {bool saveLock = true}) async {
     final adapter = _getAdapter<T>();
     final map = adapter.toMap(value);
 
@@ -386,10 +395,17 @@ class TDB {
       newId: id,
     );
     _dbLock.recordList.add(
-      DBRecord(id: id, uniqueFieldId: adapter.getUniqueFieldId(), offset: offset, length: length),
+      DBRecord(
+        id: id,
+        uniqueFieldId: adapter.getUniqueFieldId(),
+        offset: offset,
+        length: length,
+      ),
     );
     // save
-    await _dbLock.save();
+    if (saveLock) {
+      await _dbLock.save();
+    }
     // notify
     notify<T>(TBEventType.update, adapter.getUniqueFieldId(), id);
     // auto compack
@@ -402,6 +418,58 @@ class TDB {
   ///
   Future<List<DBRecord>> getAllRecord() async {
     return _dbLock.recordList;
+  }
+
+  ///
+  /// --- Relation ---
+  ///
+  Future<void> del<T>(int fieldId, int autoId) async {
+    await _deleteRelation<T>(fieldId, autoId);
+  }
+
+  Future<bool> _isDeleteRelationRestrict<T>(int autoId) async {
+    bool isRestrict = false;
+    final adapters = _adapter.values;
+    for (var adapter in adapters) {
+      final relList = adapter.relations();
+      for (var rel in relList) {
+        if (rel.parentClass == T) {
+          if (rel.onDelete == RelationAction.none) continue;
+          if (rel.onDelete == RelationAction.restrict) {
+            final box = _box[rel.childClass] as TDBox<Object?>;
+            final childen = await box.queryAll(
+              (value) => adapter.toMap(value)[rel.foreignField] == autoId,
+            );
+            isRestrict = childen.isNotEmpty;
+            break;
+          }
+        }
+      }
+    }
+    return isRestrict;
+  }
+
+  Future<void> _deleteRelation<T>(int fieldId, int autoId) async {
+    final adapters = _adapter.values;
+    for (var adapter in adapters) {
+      final relList = adapter.relations();
+      for (var rel in relList) {
+        if (rel.parentClass == T) {
+          if (rel.onDelete == RelationAction.none) continue;
+
+          if (rel.onDelete == RelationAction.cascade) {
+            final box = _box[rel.childClass] as TDBox<Object?>;
+            final childen = await box.queryAll(
+              (value) => adapter.toMap(value)[rel.foreignField] == autoId,
+            );
+            for (var child in childen) {
+              final res = await box.deleteById(adapter.getId(child));
+              print('deleted: $res - Child: $child');
+            }
+          }
+        }
+      }
+    }
   }
 
   ///
