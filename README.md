@@ -189,7 +189,7 @@ Each Box only accesses records that match its adapter's unique field ID.
 
 ---
 
-### 📌 TDBox<T> Class Structure
+### 📌 TDBox`<T>` Class Structure
 
 ```dart
 class TDBox<T> {

@@ -61,6 +61,19 @@ class TDB {
     await open(dbPath);
   }
 
+  ///
+  /// ## Restart Database Path
+  ///
+  /// Reset DB Class
+  ///
+  Future<void> restart() async {
+    await close();
+    if (_dbLock.lockFile.existsSync()) {
+      await _dbLock.lockFile.delete();
+    }
+    await open(dbFile.path);
+  }
+
   /// --- Adapter ---
 
   ///
@@ -308,7 +321,7 @@ class TDB {
     final isDeleted = await DBRW.deleteById(id, raf: _raf, dbLock: _dbLock);
 
     // relation
-    await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
+    // await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
 
     // save
     if (saveLock) {
@@ -347,7 +360,7 @@ class TDB {
       _dbLock.deletedCount++;
       _dbLock.deletedSize += record.length;
       // relation
-      await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
+      // await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
     }
 
     // save
@@ -423,54 +436,54 @@ class TDB {
   ///
   /// --- Relation ---
   ///
-  Future<void> del<T>(int fieldId, int autoId) async {
-    await _deleteRelation<T>(fieldId, autoId);
-  }
+  // Future<void> del<T>(int fieldId, int autoId) async {
+  //   await _deleteRelation<T>(fieldId, autoId);
+  // }
 
-  Future<bool> _isDeleteRelationRestrict<T>(int autoId) async {
-    bool isRestrict = false;
-    final adapters = _adapter.values;
-    for (var adapter in adapters) {
-      final relList = adapter.relations();
-      for (var rel in relList) {
-        if (rel.parentClass == T) {
-          if (rel.onDelete == RelationAction.none) continue;
-          if (rel.onDelete == RelationAction.restrict) {
-            final box = _box[rel.childClass] as TDBox<Object?>;
-            final childen = await box.queryAll(
-              (value) => adapter.toMap(value)[rel.foreignField] == autoId,
-            );
-            isRestrict = childen.isNotEmpty;
-            break;
-          }
-        }
-      }
-    }
-    return isRestrict;
-  }
+  // Future<bool> _isDeleteRelationRestrict<T>(int autoId) async {
+  //   bool isRestrict = false;
+  //   final adapters = _adapter.values;
+  //   for (var adapter in adapters) {
+  //     final relList = adapter.relations();
+  //     for (var rel in relList) {
+  //       if (rel.parentClass == T) {
+  //         if (rel.onDelete == RelationAction.none) continue;
+  //         if (rel.onDelete == RelationAction.restrict) {
+  //           final box = _box[rel.childClass] as TDBox<Object?>;
+  //           final childen = await box.queryAll(
+  //             (value) => adapter.toMap(value)[rel.foreignField] == autoId,
+  //           );
+  //           isRestrict = childen.isNotEmpty;
+  //           break;
+  //         }
+  //       }
+  //     }
+  //   }
+  //   return isRestrict;
+  // }
 
-  Future<void> _deleteRelation<T>(int fieldId, int autoId) async {
-    final adapters = _adapter.values;
-    for (var adapter in adapters) {
-      final relList = adapter.relations();
-      for (var rel in relList) {
-        if (rel.parentClass == T) {
-          if (rel.onDelete == RelationAction.none) continue;
+  // Future<void> _deleteRelation<T>(int fieldId, int autoId) async {
+  //   final adapters = _adapter.values;
+  //   for (var adapter in adapters) {
+  //     final relList = adapter.relations();
+  //     for (var rel in relList) {
+  //       if (rel.parentClass == T) {
+  //         if (rel.onDelete == RelationAction.none) continue;
 
-          if (rel.onDelete == RelationAction.cascade) {
-            final box = _box[rel.childClass] as TDBox<Object?>;
-            final childen = await box.queryAll(
-              (value) => adapter.toMap(value)[rel.foreignField] == autoId,
-            );
-            for (var child in childen) {
-              final res = await box.deleteById(adapter.getId(child));
-              print('deleted: $res - Child: $child');
-            }
-          }
-        }
-      }
-    }
-  }
+  //         if (rel.onDelete == RelationAction.cascade) {
+  //           final box = _box[rel.childClass] as TDBox<Object?>;
+  //           final childen = await box.queryAll(
+  //             (value) => adapter.toMap(value)[rel.foreignField] == autoId,
+  //           );
+  //           for (var child in childen) {
+  //             final res = await box.deleteById(adapter.getId(child));
+  //             print('deleted: $res - Child: $child');
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 
   ///
   /// ### Database Auto Clean Up

@@ -1,6 +1,10 @@
 # 1.1.1
 
 - Fixed `DBConfig.saveLocalDBLock` Not Working.
+- Added `db.restart()` -> restart database cache
+- Added `db.getOne`
+- Added `box.getOne`
+- Added `box.getById`
 
 ## 1.0.0
 

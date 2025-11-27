@@ -28,6 +28,7 @@ void main() async {
     await box.deleteById(list.first.autoId);
   }
   // await db.del<User>(1, 1);
+  //
 
   print(await box.getAll());
   print(await carBox.getAll());
