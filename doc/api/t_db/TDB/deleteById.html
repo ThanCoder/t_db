@@ -55,8 +55,9 @@
     <section class="multi-line-signature">
       
 <span class="returntype"><a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
-<span class="name ">deleteById</span>&lt;<wbr><span class="type-parameter">T</span>&gt;(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="deleteById-param-id"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span> <span class="parameter-name">id</span></span></li>
-</ol>)
+<span class="name ">deleteById</span>&lt;<wbr><span class="type-parameter">T</span>&gt;(<wbr><ol class="parameter-list"> <li><span class="parameter" id="deleteById-param-id"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span> <span class="parameter-name">id</span>, {</span></li>
+<li><span class="parameter" id="deleteById-param-saveLock"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">saveLock</span> = <span class="default-value">true</span>, </span></li>
+</ol>})
 
       
 
@@ -70,35 +71,24 @@
     
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
-  <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; deleteById&lt;T&gt;(int id) async {
+  <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; deleteById&lt;T&gt;(int id, {bool saveLock = true}) async {
   final adapter = _getAdapter&lt;T&gt;();
-  final index = _dbLock.recordList.indexWhere((e) =&gt; e.id == id);
-  if (index == -1) return false;
-  final record = _dbLock.recordList[index];
+  &#47;&#47; 🔥 relations first
+  await _deleteRelation&lt;T&gt;(id);
 
-  final dataOffset = record.offset;
-  final endPos = await _raf.position();
-  &#47;&#47; go to flag
-  await _raf.setPosition(
-    dataOffset - 4 - 8 - 4 - 1,
-  ); &#47;&#47; 4=length,8=id,4=uniqueFieldId,1=flag
-  await _raf.writeByte(DBMeta.Flag_Delete);
+  final isDeleted = await DBRW.deleteById(id, raf: _raf, dbLock: _dbLock);
 
-  &#47;&#47; go to end
-  await _raf.setPosition(endPos);
-
-  &#47;&#47; change memory
-  _dbLock.recordList.removeAt(index);
-  _dbLock.deletedCount++;
-  _dbLock.deletedSize += record.length;
+  &#47;&#47; relation
 
   &#47;&#47; save
-  await _dbLock.save();
+  if (saveLock) {
+    await _dbLock.save();
+  }
   &#47;&#47; notify
   notify&lt;T&gt;(TBEventType.delete, adapter.getUniqueFieldId(), id);
   &#47;&#47; auto compack
   await _maybeCompact();
-  return true;
+  return isDeleted;
 }</code></pre>
 </section>
 
@@ -127,7 +117,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

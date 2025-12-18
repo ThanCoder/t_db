@@ -55,9 +55,10 @@
     <section class="multi-line-signature">
       
 <span class="returntype"><a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
-<span class="name ">updateById</span>&lt;<wbr><span class="type-parameter">T</span>&gt;(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="updateById-param-id"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span> <span class="parameter-name">id</span>, </span></li>
-<li><span class="parameter" id="updateById-param-value"><span class="type-annotation">T</span> <span class="parameter-name">value</span></span></li>
-</ol>)
+<span class="name ">updateById</span>&lt;<wbr><span class="type-parameter">T</span>&gt;(<wbr><ol class="parameter-list"> <li><span class="parameter" id="updateById-param-id"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span> <span class="parameter-name">id</span>, </span></li>
+<li><span class="parameter" id="updateById-param-value"><span class="type-annotation">T</span> <span class="parameter-name">value</span>, {</span></li>
+<li><span class="parameter" id="updateById-param-saveLock"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">saveLock</span> = <span class="default-value">true</span>, </span></li>
+</ol>})
 
       
 
@@ -71,7 +72,7 @@
     
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
-  <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; updateById&lt;T&gt;(int id, T value) async {
+  <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; updateById&lt;T&gt;(int id, T value, {bool saveLock = true}) async {
   final adapter = _getAdapter&lt;T&gt;();
   final map = adapter.toMap(value);
 
@@ -104,10 +105,17 @@
     newId: id,
   );
   _dbLock.recordList.add(
-    DBRecord(id: id, uniqueFieldId: adapter.getUniqueFieldId(), offset: offset, length: length),
+    DBRecord(
+      id: id,
+      uniqueFieldId: adapter.getUniqueFieldId(),
+      offset: offset,
+      length: length,
+    ),
   );
   &#47;&#47; save
-  await _dbLock.save();
+  if (saveLock) {
+    await _dbLock.save();
+  }
   &#47;&#47; notify
   notify&lt;T&gt;(TBEventType.update, adapter.getUniqueFieldId(), id);
   &#47;&#47; auto compack
@@ -141,7 +149,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

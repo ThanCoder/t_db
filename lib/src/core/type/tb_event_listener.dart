@@ -7,3 +7,10 @@ mixin TBEventListener {
 mixin TBoxEventListener {
   void onTBoxDatabaseChanged(TBEventType event, int? id);
 }
+
+class TBStreamEvent {
+  final int uniqueFieldId;
+  final TBEventType type;
+  final int? id;
+  TBStreamEvent({required this.uniqueFieldId, required this.type, this.id});
+}

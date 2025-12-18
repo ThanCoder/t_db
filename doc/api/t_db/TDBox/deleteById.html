@@ -68,8 +68,7 @@
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; deleteById(int id) async {
-  final isDeleted = await _db.deleteById&lt;T&gt;(id);
-  return isDeleted;
+  return await _db.deleteById&lt;T&gt;(id);
 }</code></pre>
 </section>
 
@@ -98,7 +97,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

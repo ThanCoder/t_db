@@ -6,16 +6,16 @@ TDB is a high‑performance, append‑only binary database engine written in pur
 
 ## Version Compatibility
 
-**Current Database Version: `1.0.0`**
+**Current Database Version: `1.2.0`**
 
-Starting from version **1.0.0**, the database format has been fully updated.
+Starting from version **1.2.0**, the database format has been fully updated.
 Older database versions are **no longer supported** and **cannot be opened or migrated** automatically.
 
 If you attempt to open a database created with a previous version, the system will reject it for compatibility and safety reasons.
 
 **Important Notes:**
 
-- Databases created with version **1.0.0 and above** are fully compatible with future releases.
+- Databases created with version **1.2.0 and above** are fully compatible with future releases.
 - Databases created with versions **below 3.0.0** must be recreated or manually migrated.
 
 ## ✅ Features
@@ -29,6 +29,7 @@ If you attempt to open a database created with a previous version, the system wi
 - **Query and streaming API**
 - **Event listeners** for add/update/delete
 - **Automatic compaction** to reduce file size
+- **Database HBRelation** -> Database Relation
 - **Backup support during compaction**
 
 ---
@@ -39,7 +40,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  t_db: ^1.0.0
+  t_db: ^1.2.0
 ```
 
 ---
@@ -98,6 +99,37 @@ db.setAdapter<User>(UserAdapter());
 
 ---
 
+## HBRelation
+
+```dart
+enum RelationAction {
+  none,// `none` → `let developer handle`
+  cascade,// `cascade` → `remove/update children together`
+  restrict,// `restrict` → `prevent delete/update if children exist`
+}
+
+// parent
+class UserAdapter extends TDAdapter<User> {
+  @override
+  List<HBRelation> relations() {
+    return [
+      HBRelation(
+        targetType: Car,
+        foreignKey: 'userId',
+        onDelete: RelationAction.cascade,
+      ),
+    ];
+  }
+}
+// target
+class CarAdapter extends TDAdapter<Car> {
+  @override
+  getFieldValue(Car value, String fieldName) {
+    if (fieldName == 'userId') return value.userId;   /// 🔑 IMPORTANT
+  }
+}
+```
+
 ## ✨ Basic Operations
 
 ### Add
@@ -129,6 +161,16 @@ await db.updateById<User>(1, User(name: 'Updated'));
 
 ```dart
 await db.deleteById<User>(1);
+```
+
+### You can listen for changes
+
+```dart
+db.stream.listen((event) {
+  print(event.type);   // add, delete, update
+  print(event.id);      // affected record
+  print(event.uniqueFieldId) //uniqueFieldId
+});
 ```
 
 ---
@@ -200,12 +242,14 @@ class TDBox<T> {
   Future<List<T>> queryAll(bool Function(T value) test);
   Stream<T> getAllStream();
   Stream<T> queryAllStream(bool Function(T value) test);
+  Future<T?> getOne(bool Function(T value) test);
 
   Future<int> add(T value);
   Future<void> addAll(List<T> values);
   Future<bool> deleteById(int id);
   Future<void> deleteAll(List<int> idList);
   Future<bool> updateById(int id, T value);
+  Future<bool> update(T value);
 
   final List<TBoxEventListener> _listener = [];
   void addListener(TBoxEventListener listener);
@@ -318,7 +362,7 @@ When you register an adapter, TDB automatically creates a box:
 final userBox = db.getBox<User>();
 ```
 
-You can listen for changes:
+### You can listen for changes
 
 ```dart
 userBox.stream.listen((event) {

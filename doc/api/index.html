@@ -47,13 +47,13 @@
 <p>TDB is a high‑performance, append‑only binary database engine written in pure Dart. It is designed for speed, low memory usage, and easy integration into Flutter or server applications. TDB supports custom data models using adapters, auto‑increment IDs, record querying, event listeners, and automatic compaction.</p>
 <hr>
 <h2 id="version-compatibility">Version Compatibility</h2>
-<p><strong>Current Database Version: <code>3.0.0</code></strong></p>
-<p>Starting from version <strong>3.0.0</strong>, the database format has been fully updated.
+<p><strong>Current Database Version: <code>1.2.0</code></strong></p>
+<p>Starting from version <strong>1.2.0</strong>, the database format has been fully updated.
 Older database versions are <strong>no longer supported</strong> and <strong>cannot be opened or migrated</strong> automatically.</p>
 <p>If you attempt to open a database created with a previous version, the system will reject it for compatibility and safety reasons.</p>
 <p><strong>Important Notes:</strong></p>
 <ul>
-<li>Databases created with version <strong>3.0.0 and above</strong> are fully compatible with future releases.</li>
+<li>Databases created with version <strong>1.2.0 and above</strong> are fully compatible with future releases.</li>
 <li>Databases created with versions <strong>below 3.0.0</strong> must be recreated or manually migrated.</li>
 </ul>
 <h2 id="-features">✅ Features</h2>
@@ -67,13 +67,14 @@ Older database versions are <strong>no longer supported</strong> and <strong>can
 <li><strong>Query and streaming API</strong></li>
 <li><strong>Event listeners</strong> for add/update/delete</li>
 <li><strong>Automatic compaction</strong> to reduce file size</li>
+<li><strong>Database HBRelation</strong> -&gt; Database Relation</li>
 <li><strong>Backup support during compaction</strong></li>
 </ul>
 <hr>
 <h2 id="-installation">📦 Installation</h2>
 <p>Add to <code>pubspec.yaml</code>:</p>
 <pre class="language-yaml"><code class="language-yaml">dependencies:
-  t_db: ^3.0.0
+  t_db: ^1.2.0
 </code></pre>
 <hr>
 <h2 id="-quick-start">🚀 Quick Start</h2>
@@ -121,6 +122,34 @@ await db.open('test.db');
 db.setAdapter&lt;User&gt;(UserAdapter());
 </code></pre>
 <hr>
+<h2 id="hbrelation">HBRelation</h2>
+<pre class="language-dart"><code class="language-dart">enum RelationAction {
+  none,// `none` → `let developer handle`
+  cascade,// `cascade` → `remove/update children together`
+  restrict,// `restrict` → `prevent delete/update if children exist`
+}
+
+// parent
+class UserAdapter extends TDAdapter&lt;User&gt; {
+  @override
+  List&lt;HBRelation&gt; relations() {
+    return [
+      HBRelation(
+        targetType: Car,
+        foreignKey: 'userId',
+        onDelete: RelationAction.cascade,
+      ),
+    ];
+  }
+}
+// target
+class CarAdapter extends TDAdapter&lt;Car&gt; {
+  @override
+  getFieldValue(Car value, String fieldName) {
+    if (fieldName == 'userId') return value.userId;   /// 🔑 IMPORTANT
+  }
+}
+</code></pre>
 <h2 id="-basic-operations">✨ Basic Operations</h2>
 <h3 id="add">Add</h3>
 <pre class="language-dart"><code class="language-dart">final id = await db.add&lt;User&gt;(User(name: 'Than'));
@@ -137,6 +166,13 @@ printf(id); // auto-increment ID
 </code></pre>
 <h3 id="delete">Delete</h3>
 <pre class="language-dart"><code class="language-dart">await db.deleteById&lt;User&gt;(1);
+</code></pre>
+<h3 id="you-can-listen-for-changes">You can listen for changes</h3>
+<pre class="language-dart"><code class="language-dart">db.stream.listen((event) {
+  print(event.type);   // add, delete, update
+  print(event.id);      // affected record
+  print(event.uniqueFieldId) //uniqueFieldId
+});
 </code></pre>
 <hr>
 <h2 id="-box-api">📦 Box API</h2>
@@ -181,7 +217,7 @@ It provides an easy, safe CRUD interface on top of the TDB core.</p>
 </ul>
 <p>Each Box only accesses records that match its adapter's unique field ID.</p>
 <hr>
-<h3 id="-tdboxt-class-structure">📌 TDBox<t> Class Structure</t></h3>
+<h3 id="-tdboxt-class-structure">📌 TDBox<code>&lt;T&gt;</code> Class Structure</h3>
 <pre class="language-dart"><code class="language-dart">class TDBox&lt;T&gt; {
   final TDB _db;
   TDBox(this._db);
@@ -190,12 +226,14 @@ It provides an easy, safe CRUD interface on top of the TDB core.</p>
   Future&lt;List&lt;T&gt;&gt; queryAll(bool Function(T value) test);
   Stream&lt;T&gt; getAllStream();
   Stream&lt;T&gt; queryAllStream(bool Function(T value) test);
+  Future&lt;T?&gt; getOne(bool Function(T value) test);
 
   Future&lt;int&gt; add(T value);
   Future&lt;void&gt; addAll(List&lt;T&gt; values);
   Future&lt;bool&gt; deleteById(int id);
   Future&lt;void&gt; deleteAll(List&lt;int&gt; idList);
   Future&lt;bool&gt; updateById(int id, T value);
+  Future&lt;bool&gt; update(T value);
 
   final List&lt;TBoxEventListener&gt; _listener = [];
   void addListener(TBoxEventListener listener);
@@ -260,7 +298,7 @@ Events: <code>add</code>, <code>update</code>, <code>delete</code>.</p>
 When you register an adapter, TDB automatically creates a box:</p>
 <pre class="language-dart"><code class="language-dart">final userBox = db.getBox&lt;User&gt;();
 </code></pre>
-<p>You can listen for changes:</p>
+<h3 id="you-can-listen-for-changes-2">You can listen for changes</h3>
 <pre class="language-dart"><code class="language-dart">userBox.stream.listen((event) {
   print(event.type);   // add, delete, update
   print(event.id);      // affected record
@@ -437,7 +475,7 @@ autoCompact: true,
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

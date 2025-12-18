@@ -63,7 +63,7 @@
     </section>
     
 <section class="desc markdown">
-  <h3 id="deleted-record">Deleted Record</h3>
+  <h3 id="deleted-all-record-with-listid">Deleted All Record with <code>List&lt;ID&gt;</code></h3>
 </section>
 
 
@@ -73,6 +73,9 @@
   <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; deleteAll&lt;T&gt;(List&lt;int&gt; idList) async {
   final adapter = _getAdapter&lt;T&gt;();
   for (var id in idList) {
+    &#47;&#47; 🔥 relations first
+    await _deleteRelation&lt;T&gt;(id);
+
     final index = _dbLock.recordList.indexWhere((e) =&gt; e.id == id);
     if (index == -1) return false;
     final record = _dbLock.recordList[index];
@@ -129,7 +132,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

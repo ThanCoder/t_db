@@ -1,4 +1,12 @@
-# 1.1.1
+# 1.2.0
+
+- Added `Database HBRelation`
+- Added `db.deleteAllRecord()`
+- Added `db.delete(T value)`
+- Added `db.isOpened` Checker
+- Added `db.stream`,`box.stream` -> `event listener`
+
+## 1.1.1
 
 - Fixed `DBConfig.saveLocalDBLock` Not Working.
 - Added `db.restart()` -> restart database cache

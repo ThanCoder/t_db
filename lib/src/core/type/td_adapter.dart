@@ -3,7 +3,18 @@ abstract class TDAdapter<T> {
   Map<String, dynamic> toMap(T value);
   T fromMap(Map<String, dynamic> map);
   int getId(T value);
+  Type get getType => T;
 
+  /// 🔑 IMPORTANT
+  ///  ### For -> HBRelation
+  ///
+  dynamic getFieldValue(T value, String fieldName) => null;
+
+  ///
+  /// ### HBRelation
+  ///
+  ///You Need To Emplement -> `getFieldValue` Method
+  ///
   List<HBRelation> relations() => [];
 }
 
@@ -16,31 +27,39 @@ abstract class TDAdapter<T> {
 /// `restrict` → `prevent delete/update if children exist`
 ///
 ///
-enum RelationAction { none, cascade, restrict }
+enum RelationAction {
+  ///
+  /// `none` → `let developer handle`
+  ///
+  none,
+
+  ///
+  /// `cascade` → `remove/update children together`
+  ///
+  cascade,
+
+  ///
+  /// `restrict` → `prevent delete/update if children exist`
+  ///
+  restrict,
+}
 
 class HBRelation {
   ///
-  /// Parent Box
-  ///
-  final Type parentClass;
-
-  ///
   /// Child Box
   ///
-  final Type childClass;
+  final Type targetType;
 
   ///
-  /// `Child` → `Parent link field name`
+  /// child field (userId)
   ///
-  final String foreignField;
+  final String foreignKey;
+
   final RelationAction onDelete;
-  final RelationAction onUpdate;
 
   HBRelation({
-    required this.parentClass,
-    required this.childClass,
-    required this.foreignField,
+    required this.targetType,
+    required this.foreignKey,
     this.onDelete = RelationAction.none,
-    this.onUpdate = RelationAction.none,
   });
 }

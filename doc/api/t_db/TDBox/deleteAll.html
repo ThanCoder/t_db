@@ -54,7 +54,7 @@
 
     <section class="multi-line-signature">
       
-<span class="returntype"><a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+<span class="returntype"><a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
 <span class="name ">deleteAll</span>(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="deleteAll-param-idList"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>&gt;</span></span> <span class="parameter-name">idList</span></span></li>
 </ol>)
 
@@ -67,8 +67,8 @@
     
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
-  <pre class="language-dart"><code class="language-dart">Future&lt;void&gt; deleteAll(List&lt;int&gt; idList) async {
-  await _db.deleteAll&lt;T&gt;(idList);
+  <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; deleteAll(List&lt;int&gt; idList) async {
+  return await _db.deleteAll&lt;T&gt;(idList);
 }</code></pre>
 </section>
 
@@ -97,7 +97,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

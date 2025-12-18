@@ -1,3 +1,6 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'dart:async';
+
 import 'package:t_db/src/core/type/tb_event_listener.dart';
 import 'package:t_db/src/t_db_base.dart';
 
@@ -40,12 +43,19 @@ class TDBox<T> {
   }
 
   Future<bool> deleteById(int id) async {
-    final isDeleted = await _db.deleteById<T>(id);
-    return isDeleted;
+    return await _db.deleteById<T>(id);
   }
 
-  Future<void> deleteAll(List<int> idList) async {
-    await _db.deleteAll<T>(idList);
+  Future<bool> delete(T value) async {
+    return await _db.delete<T>(value);
+  }
+
+  Future<bool> deleteAll(List<int> idList) async {
+    return await _db.deleteAll<T>(idList);
+  }
+
+  Future<bool> deleteAllRecord() async {
+    return await _db.deleteAllRecord<T>();
   }
 
   Future<bool> updateById(int id, T value) async {
@@ -66,8 +76,21 @@ class TDBox<T> {
   }
 
   void notify(TBEventType event, int? id) {
+    // stream
+    _streamController.add(TDBoxStreamEvent(type: event, id: id));
+
     for (var listener in _listener) {
       listener.onTBoxDatabaseChanged(event, id);
     }
   }
+
+  // stream
+  final _streamController = StreamController<TDBoxStreamEvent>.broadcast();
+  Stream<TDBoxStreamEvent> get stream => _streamController.stream;
+}
+
+class TDBoxStreamEvent {
+  final TBEventType type;
+  final int? id;
+  TDBoxStreamEvent({required this.type, this.id});
 }

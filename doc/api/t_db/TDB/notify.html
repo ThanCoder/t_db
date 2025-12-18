@@ -70,6 +70,10 @@
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">void notify&lt;T&gt;(TBEventType event, int uniqueFieldId, int? id) {
+  &#47;&#47; stream
+  _streamController.add(
+    TBStreamEvent(uniqueFieldId: uniqueFieldId, type: event, id: id),
+  );
   for (var listener in _listener) {
     listener.onTBDatabaseChanged(event, uniqueFieldId, id);
   }
@@ -105,7 +109,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

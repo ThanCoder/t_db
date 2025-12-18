@@ -80,6 +80,8 @@
 void setAdapter&lt;T&gt;(TDAdapter&lt;T&gt; adapter) {
   _adapter[T] = adapter;
   _box[T] = TDBox&lt;T&gt;(this);
+  &#47;&#47; cascade rules
+  _cascadeRules[T] = adapter.relations();
   _checkAdapterUinqueId&lt;T&gt;(adapter);
 }</code></pre>
 </section>
@@ -109,7 +111,7 @@ void setAdapter&lt;T&gt;(TDAdapter&lt;T&gt; adapter) {
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

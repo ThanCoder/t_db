@@ -1,3 +1,5 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'dart:async';
 import 'dart:io';
 
 import 'package:t_db/src/core/db_lock.dart';
@@ -27,6 +29,7 @@ class TDB {
   late DBConfig _config;
   final Map<Type, TDAdapter> _adapter = {};
   final Map<Type, TDBox> _box = {};
+  final Map<Type, List<HBRelation>> _cascadeRules = {};
 
   ///
   /// ## Open Database
@@ -84,6 +87,8 @@ class TDB {
   void setAdapter<T>(TDAdapter<T> adapter) {
     _adapter[T] = adapter;
     _box[T] = TDBox<T>(this);
+    // cascade rules
+    _cascadeRules[T] = adapter.relations();
     _checkAdapterUinqueId<T>(adapter);
   }
 
@@ -97,6 +102,11 @@ class TDB {
     }
     return adapter as TDAdapter<T>;
   }
+
+  ///
+  /// ## Get CascadeRules List
+  ///
+  List<HBRelation> _getCascadeRules<T>() => _cascadeRules[T] ?? [];
 
   ///
   /// ### Get Box`<T>`
@@ -317,11 +327,12 @@ class TDB {
   ///
   Future<bool> deleteById<T>(int id, {bool saveLock = true}) async {
     final adapter = _getAdapter<T>();
+    // 🔥 relations first
+    await _deleteRelation<T>(id);
 
     final isDeleted = await DBRW.deleteById(id, raf: _raf, dbLock: _dbLock);
 
     // relation
-    // await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
 
     // save
     if (saveLock) {
@@ -335,11 +346,45 @@ class TDB {
   }
 
   ///
-  /// ### Deleted All Record
+  /// ### Deleted Record
+  ///
+  Future<bool> delete<T>(T value, {bool saveLock = true}) async {
+    final adapter = _getAdapter<T>();
+
+    // 🔥 relations first
+    await _deleteRelation<T>(adapter.getId(value));
+
+    final isDeleted = await DBRW.deleteById(
+      adapter.getId(value),
+      raf: _raf,
+      dbLock: _dbLock,
+    );
+    // relation
+
+    // save
+    if (saveLock) {
+      await _dbLock.save();
+    }
+    // notify
+    notify<T>(
+      TBEventType.delete,
+      adapter.getUniqueFieldId(),
+      adapter.getId(value),
+    );
+    // auto compack
+    await _maybeCompact();
+    return isDeleted;
+  }
+
+  ///
+  /// ### Deleted All Record with `List<ID>`
   ///
   Future<bool> deleteAll<T>(List<int> idList) async {
     final adapter = _getAdapter<T>();
     for (var id in idList) {
+      // 🔥 relations first
+      await _deleteRelation<T>(id);
+
       final index = _dbLock.recordList.indexWhere((e) => e.id == id);
       if (index == -1) return false;
       final record = _dbLock.recordList[index];
@@ -359,10 +404,43 @@ class TDB {
       _dbLock.recordList.removeAt(index);
       _dbLock.deletedCount++;
       _dbLock.deletedSize += record.length;
-      // relation
-      // await _deleteRelation<T>(adapter.getUniqueFieldId(), id);
     }
 
+    // save
+    await _dbLock.save();
+    // notify
+    notify<T>(TBEventType.delete, adapter.getUniqueFieldId(), null);
+    // auto compack
+    await _maybeCompact();
+    return true;
+  }
+
+  ///
+  /// ### Deleted All Record
+  ///
+  Future<bool> deleteAllRecord<T>() async {
+    final adapter = _getAdapter<T>();
+
+    for (var record in _dbLock.recordList) {
+      if (record.uniqueFieldId != adapter.getUniqueFieldId()) continue;
+
+      final dataOffset = record.offset;
+      final endPos = await _raf.position();
+      // go to flag
+      await _raf.setPosition(
+        dataOffset - 4 - 8 - 4 - 1,
+      ); // 4=length,8=id,4=uniqueFieldId,1=flag
+      await _raf.writeByte(DBMeta.Flag_Delete);
+
+      // go to end
+      await _raf.setPosition(endPos);
+
+      // change memory
+      _dbLock.deletedCount++;
+      _dbLock.deletedSize += record.length;
+    }
+    // clear record list
+    _dbLock.recordList.clear();
     // save
     await _dbLock.save();
     // notify
@@ -436,54 +514,38 @@ class TDB {
   ///
   /// --- Relation ---
   ///
-  // Future<void> del<T>(int fieldId, int autoId) async {
-  //   await _deleteRelation<T>(fieldId, autoId);
-  // }
 
-  // Future<bool> _isDeleteRelationRestrict<T>(int autoId) async {
-  //   bool isRestrict = false;
-  //   final adapters = _adapter.values;
-  //   for (var adapter in adapters) {
-  //     final relList = adapter.relations();
-  //     for (var rel in relList) {
-  //       if (rel.parentClass == T) {
-  //         if (rel.onDelete == RelationAction.none) continue;
-  //         if (rel.onDelete == RelationAction.restrict) {
-  //           final box = _box[rel.childClass] as TDBox<Object?>;
-  //           final childen = await box.queryAll(
-  //             (value) => adapter.toMap(value)[rel.foreignField] == autoId,
-  //           );
-  //           isRestrict = childen.isNotEmpty;
-  //           break;
-  //         }
-  //       }
-  //     }
-  //   }
-  //   return isRestrict;
-  // }
+  Future<void> _deleteRelation<T>(int deleteId) async {
+    final rules = _getCascadeRules<T>();
+    if (rules.isEmpty) return;
 
-  // Future<void> _deleteRelation<T>(int fieldId, int autoId) async {
-  //   final adapters = _adapter.values;
-  //   for (var adapter in adapters) {
-  //     final relList = adapter.relations();
-  //     for (var rel in relList) {
-  //       if (rel.parentClass == T) {
-  //         if (rel.onDelete == RelationAction.none) continue;
+    for (var rule in rules) {
+      final type = rule.targetType;
+      final box = _box[type]!;
+      final adapter = _adapter[type]!;
 
-  //         if (rel.onDelete == RelationAction.cascade) {
-  //           final box = _box[rel.childClass] as TDBox<Object?>;
-  //           final childen = await box.queryAll(
-  //             (value) => adapter.toMap(value)[rel.foreignField] == autoId,
-  //           );
-  //           for (var child in childen) {
-  //             final res = await box.deleteById(adapter.getId(child));
-  //             print('deleted: $res - Child: $child');
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
+      final childList = await box.queryAll((value) {
+        final fieldValue = adapter.getFieldValue(value, rule.foreignKey);
+        return deleteId == fieldValue;
+      });
+      if (childList.isEmpty) continue;
+
+      switch (rule.onDelete) {
+        case RelationAction.none:
+          // ❌ do nothing
+          break;
+        case RelationAction.restrict:
+          // 🚫 block parent delete
+          throw Exception('Delete restricted: $T has related $type');
+        case RelationAction.cascade:
+          // 🔥 cascade delete children
+          for (final child in childList) {
+            await box.deleteById(adapter.getId(child));
+          }
+          break;
+      }
+    }
+  }
 
   ///
   /// ### Database Auto Clean Up
@@ -515,9 +577,24 @@ class TDB {
   }
 
   ///
+  /// ## Database Is Opened
+  ///
+  bool get isOpened {
+    try {
+      _raf;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  ///
   /// ## Close Database
   ///
-  Future<void> close() async => await _raf.close();
+  Future<void> close() async {
+    if (!isOpened) return;
+    await _raf.close();
+  }
 
   ///
   /// ### Database Added LastId
@@ -552,6 +629,10 @@ class TDB {
   }
 
   void notify<T>(TBEventType event, int uniqueFieldId, int? id) {
+    // stream
+    _streamController.add(
+      TBStreamEvent(uniqueFieldId: uniqueFieldId, type: event, id: id),
+    );
     for (var listener in _listener) {
       listener.onTBDatabaseChanged(event, uniqueFieldId, id);
     }
@@ -560,4 +641,8 @@ class TDB {
     if (box == null) return;
     box.notify(event, id);
   }
+
+  // stream
+  final _streamController = StreamController<TBStreamEvent>.broadcast();
+  Stream<TBStreamEvent> get stream => _streamController.stream;
 }

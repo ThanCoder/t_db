@@ -61,7 +61,7 @@
     <h2>Constructors</h2>
     <dl class="constructor-summary-list">
         <dt id="TDBox.new" class="callable">
-          <span class="name"><a href="../t_db/TDBox/TDBox.html">TDBox.new</a></span><span class="signature">(<span class="parameter" id="-param-_db"><span class="type-annotation"><a href="../t_db/TDB-class.html">TDB</a></span> <span class="parameter-name">_db</span></span>)</span>
+          <span class="name"><a href="../t_db/TDBox/TDBox.html">TDBox</a></span><span class="signature">(<span class="parameter" id="-param-_db"><span class="type-annotation"><a href="../t_db/TDB-class.html">TDB</a></span> <span class="parameter-name">_db</span></span>)</span>
         </dt>
         <dd>
           
@@ -70,7 +70,7 @@
   </section>
     
   <section
-      class="summary offset-anchor inherited"
+      class="summary offset-anchor"
       id="instance-properties">
     <h2>Properties</h2>
     <dl class="properties">
@@ -95,6 +95,18 @@
 <dd class="inherited">
   A representation of the runtime type of the object.
   <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="stream" class="property">
+  <span class="name"><a href="../t_db/TDBox/stream.html">stream</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Stream-class.html">Stream</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../t_db/TDBoxStreamEvent-class.html">TDBoxStreamEvent</a></span>&gt;</span></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">no setter</span></div>
 
 </dd>
 
@@ -146,9 +158,35 @@
 
 </dd>
 
+        <dt id="delete" class="callable">
+  <span class="name"><a href="../t_db/TDBox/delete.html">delete</a></span><span class="signature">(<wbr><span class="parameter" id="delete-param-value"><span class="type-annotation">T</span> <span class="parameter-name">value</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  
+  
+
+</dd>
+
         <dt id="deleteAll" class="callable">
   <span class="name"><a href="../t_db/TDBox/deleteAll.html">deleteAll</a></span><span class="signature">(<wbr><span class="parameter" id="deleteAll-param-idList"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>&gt;</span></span> <span class="parameter-name">idList</span></span>)
-    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">void</span>&gt;</span></span>
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  
+  
+
+</dd>
+
+        <dt id="deleteAllRecord" class="callable">
+  <span class="name"><a href="../t_db/TDBox/deleteAllRecord.html">deleteAllRecord</a></span><span class="signature">(<wbr>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
   </span>
   
 
@@ -188,6 +226,32 @@
         <dt id="getAllStream" class="callable">
   <span class="name"><a href="../t_db/TDBox/getAllStream.html">getAllStream</a></span><span class="signature">(<wbr>)
     <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Stream-class.html">Stream</a><span class="signature">&lt;<wbr><span class="type-parameter">T</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  
+  
+
+</dd>
+
+        <dt id="getById" class="callable">
+  <span class="name"><a href="../t_db/TDBox/getById.html">getById</a></span><span class="signature">(<wbr><span class="parameter" id="getById-param-id"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span> <span class="parameter-name">id</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">T?</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  
+  
+
+</dd>
+
+        <dt id="getOne" class="callable">
+  <span class="name"><a href="../t_db/TDBox/getOne.html">getOne</a></span><span class="signature">(<wbr><span class="parameter" id="getOne-param-test"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">test</span>(<span class="parameter" id="param-value"><span class="type-annotation">T</span> <span class="parameter-name">value</span></span>)</span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter">T?</span>&gt;</span></span>
   </span>
   
 
@@ -339,7 +403,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

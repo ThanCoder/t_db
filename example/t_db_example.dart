@@ -2,36 +2,45 @@ import 'package:t_db/t_db.dart';
 
 void main() async {
   final db = TDB.getInstance();
+
   await db.open(
     'test.db',
     config: DBConfig.getDefault().copyWith(saveLocalDBLock: false),
   );
+  // print('isOpened: ${db.isOpened}');
 
   db.setAdapter<User>(UserAdapter());
   db.setAdapter<Car>(CarAdapter());
+
+  // await db.deleteById<User>(7);
 
   // db.addListener(DBListener());
 
   final box = db.getBox<User>();
   final carBox = db.getBox<Car>();
   // box.addListener(BoxListener());
-
-  // final id = await box.add(User(name: 'ThanCoder'));
-  // await carBox.add(Car(userId: id, name: 'ThanCoder Car'));
-
-  final list = await box.getAll();
-
-  print(list);
-  print(await carBox.getAll());
-
-  if (list.isNotEmpty) {
-    await box.deleteById(list.first.autoId);
-  }
-  // await db.del<User>(1, 1);
-  //
+  // box.stream.listen((event) {
+  //   print('Type: ${event.type} - ID: ${event.id}');
+  // });
+  db.stream.listen((event) {
+    print(
+      'Type: ${event.type} UniqueId: ${event.uniqueFieldId} - ID: ${event.id}',
+    );
+  });
+  final id = await box.add(User(name: 'ThanCoder'));
+  await carBox.add(Car(userId: id, name: 'ThanCoder Car $id'));
 
   print(await box.getAll());
   print(await carBox.getAll());
+
+  // if (list.isNotEmpty) {
+  //   await box.deleteById(list.first.autoId);
+  // }
+  // await db.del<User>(1, 1);
+  //
+
+  // print(await box.getAll());
+  // print(await carBox.getAll());
 
   // print(await db.getById(4));
 
@@ -44,6 +53,17 @@ void main() async {
 }
 
 class UserAdapter extends TDAdapter<User> {
+  @override
+  List<HBRelation> relations() {
+    return [
+      HBRelation(
+        targetType: Car,
+        foreignKey: 'userId',
+        onDelete: RelationAction.cascade,
+      ),
+    ];
+  }
+
   @override
   User fromMap(Map<String, dynamic> map) {
     return User.fromMap(map);
@@ -67,6 +87,11 @@ class UserAdapter extends TDAdapter<User> {
 
 class CarAdapter extends TDAdapter<Car> {
   @override
+  getFieldValue(Car value, String fieldName) {
+    if (fieldName == 'userId') return value.userId;
+  }
+
+  @override
   Car fromMap(Map<String, dynamic> map) {
     return Car.fromMap(map);
   }
@@ -74,18 +99,6 @@ class CarAdapter extends TDAdapter<Car> {
   @override
   int getUniqueFieldId() {
     return 2;
-  }
-
-  @override
-  List<HBRelation> relations() {
-    return [
-      HBRelation(
-        parentClass: User,
-        childClass: Car,
-        foreignField: 'userId',
-        onDelete: RelationAction.none,
-      ),
-    ];
   }
 
   @override

@@ -75,7 +75,11 @@
   dbFile = File(dbPath);
   _config = config ?? DBConfig.getDefault();
 
-  _dbLock = DBLock(dbFile: dbFile, lockFile: File(&#39;$dbPath.lock&#39;));
+  _dbLock = DBLock(
+    dbFile: dbFile,
+    lockFile: File(&#39;$dbPath.lock&#39;),
+    saveLocalLockFile: _config.saveLocalDBLock,
+  );
   if (!dbFile.existsSync()) {
     final raf = await dbFile.open(mode: FileMode.write);
     await BinaryRW.writeHeader(
@@ -115,7 +119,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>

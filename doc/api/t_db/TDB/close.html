@@ -69,7 +69,10 @@
     
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
-  <pre class="language-dart"><code class="language-dart">Future&lt;void&gt; close() async =&gt; await _raf.close();</code></pre>
+  <pre class="language-dart"><code class="language-dart">Future&lt;void&gt; close() async {
+  if (!isOpened) return;
+  await _raf.close();
+}</code></pre>
 </section>
 
 
@@ -97,7 +100,7 @@
 <footer>
   <span class="no-break">
     t_db
-      3.0.0
+      1.2.0
   </span>
   
 </footer>
