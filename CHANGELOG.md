@@ -1,4 +1,19 @@
-# 1.2.0
+# 1.3.0
+
+- Added `db.isDataRecordCreatedExists`
+
+## Added
+
+```dart
+  final header = await db.getHeader();
+  TDBHeader? staticHeader = await TDB.getHeaderFromPath('dbPath');//static method
+
+  print(header.magic);
+  print(header.type);
+  print(header.version);
+```
+
+## 1.2.0
 
 - Added `Database HBRelation`
 - Added `db.deleteAllRecord()`

@@ -1,4 +1,3 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
 import 'dart:io';
 
@@ -12,6 +11,7 @@ import 'package:t_db/src/core/type/db_record.dart';
 import 'package:t_db/src/core/type/tb_event_listener.dart';
 import 'package:t_db/src/core/type/td_adapter.dart';
 import 'package:t_db/src/core/type/td_box.dart';
+import 'package:t_db/src/core/type/tdb_header.dart';
 
 class TDB {
   ///
@@ -35,6 +35,8 @@ class TDB {
   /// ## Open Database
   ///
   Future<void> open(String dbPath, {DBConfig? config}) async {
+    await close();
+
     dbFile = File(dbPath);
     _config = config ?? DBConfig.getDefault();
 
@@ -597,6 +599,26 @@ class TDB {
   }
 
   ///
+  /// ### Check Data Record
+  ///
+  bool get isDataRecordCreatedExists {
+    if (isOpened) {
+      return _raf.lengthSync() > BinaryRW.headerByteLength;
+    }
+    return false;
+  }
+
+  ///
+  /// ### Get DB Header
+  ///
+  Future<TDBHeader> getHeader() async {
+    final raf = await dbFile.open();
+    final (magic, version, type) = await BinaryRW.readHeader(raf);
+    await raf.close();
+    return TDBHeader(magic: magic, version: version, type: type);
+  }
+
+  ///
   /// ### Database Added LastId
   ///
   int get getLastId => _dbLock.lastId;
@@ -616,8 +638,24 @@ class TDB {
   ///
   List<int> get getUniqueFieldIdList => _dbLock.uniqueFieldIdList;
 
-  /// --- Event Listener ---
+  ///
+  /// --- Static ----
+  ///
+  /// ### Get Header From DB Path
+  ///
+  static Future<TDBHeader?> getHeaderFromPath(String path) async {
+    final file = File(path);
+    if (!file.existsSync()) return null;
+    final raf = await file.open();
+    final (magic, version, type) = await BinaryRW.readHeader(raf);
+    await raf.close();
 
+    return TDBHeader(magic: magic, version: version, type: type);
+  }
+
+  ///
+  /// --- Event Listener ---
+  ///
   final List<TBEventListener> _listener = [];
 
   void addListener(TBEventListener listener) {

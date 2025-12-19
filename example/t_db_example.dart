@@ -7,47 +7,25 @@ void main() async {
     'test.db',
     config: DBConfig.getDefault().copyWith(saveLocalDBLock: false),
   );
-  // print('isOpened: ${db.isOpened}');
-
-  db.setAdapter<User>(UserAdapter());
-  db.setAdapter<Car>(CarAdapter());
-
-  // await db.deleteById<User>(7);
-
-  // db.addListener(DBListener());
-
-  final box = db.getBox<User>();
-  final carBox = db.getBox<Car>();
-  // box.addListener(BoxListener());
-  // box.stream.listen((event) {
-  //   print('Type: ${event.type} - ID: ${event.id}');
-  // });
   db.stream.listen((event) {
     print(
       'Type: ${event.type} UniqueId: ${event.uniqueFieldId} - ID: ${event.id}',
     );
   });
-  final id = await box.add(User(name: 'ThanCoder'));
-  await carBox.add(Car(userId: id, name: 'ThanCoder Car $id'));
+
+  print(db.isDataRecordCreatedExists);
+
+  db.setAdapter<User>(UserAdapter());
+  db.setAdapter<Car>(CarAdapter());
+
+  final box = db.getBox<User>();
+  final carBox = db.getBox<Car>();
+
+  // final id = await box.add(User(name: 'ThanCoder'));
+  // await carBox.add(Car(userId: id, name: 'ThanCoder Car $id'));
 
   print(await box.getAll());
   print(await carBox.getAll());
-
-  // if (list.isNotEmpty) {
-  //   await box.deleteById(list.first.autoId);
-  // }
-  // await db.del<User>(1, 1);
-  //
-
-  // print(await box.getAll());
-  // print(await carBox.getAll());
-
-  // print(await db.getById(4));
-
-  // print('lastId: ${db.getLastId}');
-  // print('deletedCount: ${db.getDeletedCount}');
-  // print('deletedSize: ${db.getDeletedSize}');
-  // print('uniqueFieldIdList: ${db.getUniqueFieldIdList}');
 
   await db.close();
 }
@@ -127,6 +105,10 @@ class User {
   @override
   String toString() {
     return 'ID: $autoId - Name: $name';
+  }
+
+  User copyWith({int? autoId, String? name}) {
+    return User(autoId: autoId ?? this.autoId, name: name ?? this.name);
   }
 }
 

@@ -5,7 +5,15 @@ import 'package:t_db/src/core/encoder.dart';
 import 'package:t_db/src/core/type/db_config.dart';
 import 'package:t_db/src/core/type/db_meta.dart';
 
+
+
 class BinaryRW {
+  ///
+  /// 
+  /// ### DB Header Byte Length
+  ///
+  static int get headerByteLength => 9;
+
   ///
   /// Write DB Header
   ///
