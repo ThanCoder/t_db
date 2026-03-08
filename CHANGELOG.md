@@ -1,4 +1,9 @@
-# 1.3.0
+# 1.4.0
+
+- Added `setAdapterNotExists<T>`
+- Added `clearAdapter`
+
+## 1.3.0
 
 - Added `db.isDataRecordCreatedExists`
 

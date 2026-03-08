@@ -95,6 +95,32 @@ class TDB {
   }
 
   ///
+  /// ### Set Adapter`<T>`
+  ///
+  ///Usage //`db.setAdapter<User>(UserAdapter());`
+  ///
+  void setAdapterNotExists<T>(TDAdapter<T> adapter) {
+    final ids = _adapter.values.map((e) => e.getUniqueFieldId()).toList();
+    //တူနေရင် မထည့်တော့ဘူး
+    if (ids.contains(adapter.getUniqueFieldId())) return;
+
+    _adapter[T] = adapter;
+    _box[T] = TDBox<T>(this);
+    // cascade rules
+    _cascadeRules[T] = adapter.relations();
+    _checkAdapterUinqueId<T>(adapter);
+  }
+
+  ///
+  /// ### Added -> All Adapter Clear
+  ///
+  void clearAdapter() {
+    _adapter.clear();
+    _box.clear();
+    _cascadeRules.clear();
+  }
+
+  ///
   /// ### Get Adapter`<T>`
   ///
   TDAdapter<T> _getAdapter<T>() {
