@@ -2,152 +2,123 @@ import 'package:t_db/t_db.dart';
 
 void main() async {
   final db = TDB.getInstance();
+  db.registerAdapterNotExists<Post>(PostAdapter());
+  db.registerAdapterNotExists<PostContent>(PostContentAdapter());
 
-  await db.open(
-    'test.db',
-    config: DBConfig.getDefault().copyWith(saveLocalDBLock: false),
-  );
-  db.stream.listen((event) {
-    print(
-      'Type: ${event.type} UniqueId: ${event.uniqueFieldId} - ID: ${event.id}',
-    );
-  });
+  await db.open('test.db');
 
-  print(db.isDataRecordCreatedExists);
+  final box = db.getBox<Post>();
+  final content = db.getBox<PostContent>();
 
-  db.setAdapter<User>(UserAdapter());
-  db.setAdapter<Car>(CarAdapter());
+  // await box.add(Post(title: 'post one'));
+  // await box.add(Post(title: 'post two'));
+  // await box.add(Post(title: 'post three'));
 
-  final box = db.getBox<User>();
-  final carBox = db.getBox<Car>();
+  // await box.deleteById(4, childItemsWillDelete: true);
+  // final list = await box.getAll();
 
-  // final id = await box.add(User(name: 'ThanCoder'));
-  // await carBox.add(Car(userId: id, name: 'ThanCoder Car $id'));
+  // await box.updateById(6, list.first.copyWith(title: 'updated post three'));
 
-  print(await box.getAll());
-  print(await carBox.getAll());
+  for (var post in await box.getAll()) {
+    print('id: ${post.id} - title: ${post.title}');
+    // await content.add(
+    //   PostContent(postId: post.id, content: 'Content ${post.title}'),
+    // );
+  }
+  for (var co in await content.getAll()) {
+    print('id: ${co.id} - parentId: ${co.postId} - content: ${co.content}');
+  }
+  // print(await box.getAll());
+
+  print('lastIndex: ${db.lastIndex}');
+  print('magic: ${db.magic}');
+  print('version: ${db.version}');
+  print('deletedCount: ${db.deletedCount}');
+  print('deletedSize: ${db.deletedSize}');
 
   await db.close();
 }
 
-class UserAdapter extends TDAdapter<User> {
+class PostAdapter extends TDBAdapter<Post> {
   @override
-  List<HBRelation> relations() {
-    return [
-      HBRelation(
-        targetType: Car,
-        foreignKey: 'userId',
-        onDelete: RelationAction.cascade,
-      ),
-    ];
+  int get adapterTypeId => 1;
+
+  @override
+  Post fromMap(Map<String, dynamic> map) {
+    return Post.fromJson(map);
   }
 
   @override
-  User fromMap(Map<String, dynamic> map) {
-    return User.fromMap(map);
+  int getId(Post value) {
+    return value.id;
   }
 
   @override
-  int getUniqueFieldId() {
-    return 1; // must be unique for each model
-  }
-
-  @override
-  Map<String, dynamic> toMap(User value) {
-    return value.toMap();
-  }
-
-  @override
-  int getId(User value) {
-    return value.autoId;
+  Map<String, dynamic> toMap(Post value) {
+    return value.toJson();
   }
 }
 
-class CarAdapter extends TDAdapter<Car> {
+class PostContentAdapter extends TDBAdapter<PostContent> {
   @override
-  getFieldValue(Car value, String fieldName) {
-    if (fieldName == 'userId') return value.userId;
+  int get adapterTypeId => 2;
+
+  @override
+  int parentId(PostContent value) {
+    return value.postId;
   }
 
   @override
-  Car fromMap(Map<String, dynamic> map) {
-    return Car.fromMap(map);
+  PostContent fromMap(Map<String, dynamic> map) {
+    return PostContent.fromJson(map);
   }
 
   @override
-  int getUniqueFieldId() {
-    return 2;
+  int getId(PostContent value) {
+    return value.id;
   }
 
   @override
-  Map<String, dynamic> toMap(Car value) {
-    return value.toMap();
-  }
-
-  @override
-  int getId(Car value) {
-    return value.autoId;
+  Map<String, dynamic> toMap(PostContent value) {
+    return value.toJson();
   }
 }
 
-class User {
-  final int autoId;
-  final String name;
-  User({this.autoId = 0, required this.name});
+class Post {
+  final int id; //auto generated id
+  final String title;
 
-  Map<String, dynamic> toMap() {
-    return <String, dynamic>{'autoId': autoId, 'name': name};
+  const Post({this.id = 0, required this.title});
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'title': title};
   }
 
-  factory User.fromMap(Map<String, dynamic> map) {
-    return User(autoId: map['autoId'] as int, name: map['name'] as String);
-  }
-  @override
-  String toString() {
-    return 'ID: $autoId - Name: $name';
+  factory Post.fromJson(Map<String, dynamic> json) {
+    return Post(id: json['id'], title: json['title']);
   }
 
-  User copyWith({int? autoId, String? name}) {
-    return User(autoId: autoId ?? this.autoId, name: name ?? this.name);
+  Post copyWith({int? id, String? title}) {
+    return Post(id: id ?? this.id, title: title ?? this.title);
   }
 }
 
-class Car {
-  final int autoId;
-  final int userId;
-  final String name;
-  Car({this.autoId = 0, required this.userId, required this.name});
+class PostContent {
+  final int id; //auto generated id
+  final int postId;
+  final String content;
 
-  @override
-  String toString() {
-    return 'ID: $autoId - Name: $name userId: $userId';
+  const PostContent({this.id = 0, required this.postId, required this.content});
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'postId': postId, 'content': content};
   }
 
-  Map<String, dynamic> toMap() {
-    return <String, dynamic>{'autoId': autoId, 'userId': userId, 'name': name};
-  }
-
-  factory Car.fromMap(Map<String, dynamic> map) {
-    return Car(
-      autoId: map['autoId'] as int,
-      userId: map['userId'] as int,
-      name: map['name'] as String,
-    );
-  }
-}
-
-class BoxListener implements TBoxEventListener {
-  @override
-  void onTBoxDatabaseChanged(TBEventType event, int? id) {
-    print('[BoxListener]: event:$event - id: $id');
-  }
-}
-
-class DBListener implements TBEventListener {
-  @override
-  void onTBDatabaseChanged(TBEventType event, int uniqueFieldId, int? id) {
-    print(
-      '[DBListener]: event:$event - uniqueFieldId: $uniqueFieldId - id: $id',
+  factory PostContent.fromJson(Map<String, dynamic> json) {
+    return PostContent(
+      id: json['id'],
+      postId: json['postId'],
+      content: json['content'],
     );
   }
 }
