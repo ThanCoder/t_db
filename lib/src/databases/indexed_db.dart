@@ -273,15 +273,15 @@ class IndexedDB {
     final size = await _dbFile.length();
     if (size < 5) return;
     final raf = await _dbFile.open();
+
     final (magic, version) = await TDBHeader.readHeader(raf); //need config
     // set
     _magic = magic;
     _version = version;
 
-    int currentPos = 5;
-    while (currentPos < size) {
+    while (await raf.position() < size) {
       try {
-        final (meta, status) = await TDBRecored.getMeta(raf, currentPos);
+        final (meta, status) = await TDBRecored.getMeta(raf);
 
         if (status == RecordStatus.active) {
           _masterIndex[meta.id] = meta;
@@ -295,9 +295,6 @@ class IndexedDB {
         }
         // calc index
         if (meta.id > _lastIndex) _lastIndex = meta.id;
-
-        // ခုန်ကျော်မယ်
-        currentPos = meta.offset + TDBRecored.headerSize + meta.dataSize;
       } catch (e) {
         // print('[IndexedDB:_buildIndex]: $e');
         break;

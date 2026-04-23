@@ -54,9 +54,9 @@ class TDBRecored {
   ///
   static Future<(RecordMeta, RecordStatus)> getMeta(
     RandomAccessFile raf,
-    int headerStartOffset,
   ) async {
-    await raf.setPosition(headerStartOffset);
+    final headerStartOffset = await raf.position();
+
     // 2. Header bytes (22 bytes) ကို ဖတ်မယ်
     final Uint8List bytes = await raf.read(22);
 
@@ -72,6 +72,10 @@ class TDBRecored {
     final id = header.getInt8Bytes(2); // 2 to 9
     final parentId = header.getInt8Bytes(10); // 10 to 17
     final dataSize = header.getInt4Bytes(18); // 18 to 21
+
+    final endPos = await raf.position();
+    // ခုန်ကျော်မယ်
+    await raf.setPosition(endPos + dataSize);
 
     return (
       RecordMeta(
