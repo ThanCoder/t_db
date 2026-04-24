@@ -1,7 +1,7 @@
 library;
 
-// export '_old_src/t_db_base.dart';
-// export '_old_src/core/type/index.dart';
-export 'src/base.dart';
-export 'src/databases/tdb_header.dart';
-export 'src/utils/tdb_adapter.dart';
+export 'src/t_db_base.dart';
+export 'src/core/type/index.dart';
+export 'src/core/type/db_config.dart';
+export 'src/core/type/td_adapter.dart';
+export 'src/core/type/td_box.dart';

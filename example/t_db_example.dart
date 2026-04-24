@@ -2,8 +2,8 @@ import 'package:t_db/t_db.dart';
 
 void main() async {
   final db = TDB.getInstance();
-  db.registerAdapterNotExists<Post>(PostAdapter());
-  db.registerAdapterNotExists<PostContent>(PostContentAdapter());
+  db.setAdapterNotExists<Post>(PostAdapter());
+  db.setAdapterNotExists<PostContent>(PostContentAdapter());
 
   await db.open('test.db');
 
@@ -18,6 +18,7 @@ void main() async {
   // final list = await box.getAll();
 
   // await box.updateById(6, list.first.copyWith(title: 'updated post three'));
+  // await box.updateById(1,Post(title: 'post test update') );
 
   for (var post in await box.getAll()) {
     print('id: ${post.id} - title: ${post.title}');
@@ -30,19 +31,22 @@ void main() async {
   }
   // print(await box.getAll());
 
-  print('lastIndex: ${db.lastIndex}');
-  print('magic: ${db.magic}');
-  print('version: ${db.version}');
-  print('deletedCount: ${db.deletedCount}');
-  print('deletedSize: ${db.deletedSize}');
+  // print('lastIndex: ${db.lastIndex}');
+  // print('magic: ${db.magic}');
+  // print('version: ${db.version}');
+  // print('deletedCount: ${db.deletedCount}');
+  // print('deletedSize: ${db.deletedSize}');
 
   await db.close();
+
+  print(
+    await TDB.getHeaderFromPath(
+      '/home/thancoder/projects/plugins/t_db/test.db',
+    ),
+  );
 }
 
-class PostAdapter extends TDBAdapter<Post> {
-  @override
-  int get adapterTypeId => 1;
-
+class PostAdapter extends TDAdapter<Post> {
   @override
   Post fromMap(Map<String, dynamic> map) {
     return Post.fromJson(map);
@@ -57,17 +61,12 @@ class PostAdapter extends TDBAdapter<Post> {
   Map<String, dynamic> toMap(Post value) {
     return value.toJson();
   }
+
+  @override
+  int get getUniqueFieldId => 1;
 }
 
-class PostContentAdapter extends TDBAdapter<PostContent> {
-  @override
-  int get adapterTypeId => 2;
-
-  @override
-  int parentId(PostContent value) {
-    return value.postId;
-  }
-
+class PostContentAdapter extends TDAdapter<PostContent> {
   @override
   PostContent fromMap(Map<String, dynamic> map) {
     return PostContent.fromJson(map);
@@ -82,6 +81,9 @@ class PostContentAdapter extends TDBAdapter<PostContent> {
   Map<String, dynamic> toMap(PostContent value) {
     return value.toJson();
   }
+
+  @override
+  int get getUniqueFieldId => 2;
 }
 
 class Post {
