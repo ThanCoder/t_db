@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:t_db/src/core/utils/encoder.dart';
+
 abstract class TDAdapter<T> {
-  int get getUniqueFieldId;
+  int getUniqueFieldId();
   Map<String, dynamic> toMap(T value);
   T fromMap(Map<String, dynamic> map);
   int getId(T value);
@@ -10,12 +15,15 @@ abstract class TDAdapter<T> {
   ///
   dynamic getFieldValue(T value, String fieldName) => null;
 
-  ///
-  /// ### HBRelation
-  ///
-  ///You Need To Emplement -> `getFieldValue` Method
-  ///
-  List<HBRelation> relations() => [];
+  String toJson(T value) => jsonEncode(toMap(value));
+  Map<String, dynamic> fromJson(String source) => jsonDecode(source);
+
+  // compressor
+  Uint8List encodeRecord(String jsonData) =>
+      encodeRecordCompress4Json(jsonData);
+
+  String decodeRecord(Uint8List jsonDataBytes) =>
+      decodeRecordCompress4Json(jsonDataBytes);
 }
 
 /// ### ✔️ Conclusion

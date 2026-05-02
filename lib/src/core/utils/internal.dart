@@ -1,6 +1,6 @@
 import 'dart:io';
 
-class TMap {
+class TDBMap {
   static String getString(
     Map<String, dynamic> map,
     List<String> keys, {
@@ -69,29 +69,29 @@ class TMap {
   }
 }
 
-extension TMapExtension on Map<String, dynamic> {
+extension TDBMapExtension on Map<String, dynamic> {
   String getString(List<String> keys, {String def = ''}) {
-    return TMap.getString(this, keys, defaultValue: def);
+    return TDBMap.getString(this, keys, defaultValue: def);
   }
 
   int getInt(List<String> keys, {int def = 0}) {
-    return TMap.getInt(this, keys, defaultValue: def);
+    return TDBMap.getInt(this, keys, defaultValue: def);
   }
 
   double getDouble(List<String> keys, {double def = 0.0}) {
-    return TMap.getDouble(this, keys, defaultValue: def);
+    return TDBMap.getDouble(this, keys, defaultValue: def);
   }
 
   bool getBool(List<String> keys, {bool def = false}) {
-    return TMap.getBool(this, keys, defaultValue: def);
+    return TDBMap.getBool(this, keys, defaultValue: def);
   }
 
   T get<T>(List<String> keys, {required T def}) {
-    return TMap.get<T>(this, keys, defaultValue: def);
+    return TDBMap.get<T>(this, keys, defaultValue: def);
   }
 }
 
-extension DoubleExtension on double {
+extension TDBDoubleExtension on double {
   String toFileSizeLabel({int asFixed = 2}) {
     String res = '';
     int pow = 1024;
@@ -124,7 +124,7 @@ extension DoubleExtension on double {
   }
 }
 
-extension IntExtension on int {
+extension TDBIntExtension on int {
   String getSizeLabel({int asFixed = 2}) {
     return toDouble().toFileSizeLabel(asFixed: asFixed);
   }
@@ -134,7 +134,7 @@ extension IntExtension on int {
   }
 }
 
-extension StringExtension on String {
+extension TDBStringExtension on String {
   String toCaptalize() {
     if (isEmpty) return this;
     return '${this[0].toUpperCase()}${substring(1, length)}';

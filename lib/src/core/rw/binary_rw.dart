@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:t_db/src/core/encoder.dart';
+import 'package:t_db/src/core/utils/encoder.dart';
 import 'package:t_db/src/core/type/db_config.dart';
 import 'package:t_db/src/core/type/db_meta.dart';
 

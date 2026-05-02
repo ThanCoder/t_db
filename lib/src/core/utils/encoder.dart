@@ -56,3 +56,22 @@ Map<String, dynamic> decodeRecordCompress4(Uint8List bytes) {
   final jsonStr = utf8.decode(decompressed);
   return jsonDecode(jsonStr);
 }
+
+Uint8List encodeRecordCompress4Json(String jsonData) {
+  final jsonBytes = utf8.encode(jsonData);
+  final compressed = ZLibEncoder().convert(jsonBytes);
+  final lengthBytes = ByteData(4)..setUint32(0, compressed.length, Endian.big);
+  return Uint8List.fromList([
+    ...lengthBytes.buffer.asUint8List(),
+    ...compressed,
+  ]);
+}
+
+String decodeRecordCompress4Json(Uint8List jsonDataBytes) {
+  final view = ByteData.sublistView(jsonDataBytes);
+  final length = view.getUint32(0, Endian.big);
+  final compressed = jsonDataBytes.sublist(4, 4 + length);
+  final decompressed = ZLibDecoder().convert(compressed);
+  final jsonStr = utf8.decode(decompressed);
+  return jsonStr;
+}

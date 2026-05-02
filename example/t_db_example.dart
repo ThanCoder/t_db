@@ -1,126 +1,148 @@
 import 'package:t_db/t_db.dart';
 
+import 'tdb_models/apyar.dart';
+
 void main() async {
   final db = TDB.getInstance();
-  db.setAdapterNotExists<Post>(PostAdapter());
-  db.setAdapterNotExists<PostContent>(PostContentAdapter());
 
-  await db.open('test.db');
+  await db.open(
+    '/home/thancoder/Downloads/Apyar App/apyar.db',
+    config: DBConfig.getDefault().copyWith(saveLocalDBLock: false),
+  );
+  db.setAdapter<Apyar>(ApyarAdapter());
 
-  final box = db.getBox<Post>();
-  final content = db.getBox<PostContent>();
+  final apyarBox = db.getBox<Apyar>();
 
-  // await box.add(Post(title: 'post one'));
-  // await box.add(Post(title: 'post two'));
-  // await box.add(Post(title: 'post three'));
-
-  // await box.deleteById(4, childItemsWillDelete: true);
-  // final list = await box.getAll();
-
-  // await box.updateById(6, list.first.copyWith(title: 'updated post three'));
-  // await box.updateById(1,Post(title: 'post test update') );
-
-  for (var post in await box.getAll()) {
-    print('id: ${post.id} - title: ${post.title}');
-    // await content.add(
-    //   PostContent(postId: post.id, content: 'Content ${post.title}'),
-    // );
+  for (var item in await apyarBox.getAll()) {
+    print(item);
   }
-  for (var co in await content.getAll()) {
-    print('id: ${co.id} - parentId: ${co.postId} - content: ${co.content}');
-  }
+
+  // print(db.isDataRecordCreatedExists);
+
+  // db.setAdapter<User>(UserAdapter());
+  // db.setAdapter<Car>(CarAdapter());
+
+  // final box = db.getBox<User>();
+  // final carBox = db.getBox<Car>();
+
+  // // final id = await box.add(User(name: 'ThanCoder'));
+  // // await carBox.add(Car(userId: id, name: 'ThanCoder Car $id'));
+
   // print(await box.getAll());
-
-  // print('lastIndex: ${db.lastIndex}');
-  // print('magic: ${db.magic}');
-  // print('version: ${db.version}');
-  // print('deletedCount: ${db.deletedCount}');
-  // print('deletedSize: ${db.deletedSize}');
+  // print(await carBox.getAll());
+  print('deletedCount: ${db.deletedCount}');
+  print('deletedSize: ${db.deletedSize}');
 
   await db.close();
-
-  print(
-    await TDB.getHeaderFromPath(
-      '/home/thancoder/projects/plugins/t_db/test.db',
-    ),
-  );
 }
 
-class PostAdapter extends TDAdapter<Post> {
+class UserAdapter extends TDAdapter<User> {
   @override
-  Post fromMap(Map<String, dynamic> map) {
-    return Post.fromJson(map);
+  User fromMap(Map<String, dynamic> map) {
+    return User.fromMap(map);
   }
 
   @override
-  int getId(Post value) {
-    return value.id;
+  int getUniqueFieldId() {
+    return 1; // must be unique for each model
   }
 
   @override
-  Map<String, dynamic> toMap(Post value) {
-    return value.toJson();
+  Map<String, dynamic> toMap(User value) {
+    return value.toMap();
   }
 
   @override
-  int get getUniqueFieldId => 1;
-}
-
-class PostContentAdapter extends TDAdapter<PostContent> {
-  @override
-  PostContent fromMap(Map<String, dynamic> map) {
-    return PostContent.fromJson(map);
-  }
-
-  @override
-  int getId(PostContent value) {
-    return value.id;
-  }
-
-  @override
-  Map<String, dynamic> toMap(PostContent value) {
-    return value.toJson();
-  }
-
-  @override
-  int get getUniqueFieldId => 2;
-}
-
-class Post {
-  final int id; //auto generated id
-  final String title;
-
-  const Post({this.id = 0, required this.title});
-
-  Map<String, dynamic> toJson() {
-    return {'id': id, 'title': title};
-  }
-
-  factory Post.fromJson(Map<String, dynamic> json) {
-    return Post(id: json['id'], title: json['title']);
-  }
-
-  Post copyWith({int? id, String? title}) {
-    return Post(id: id ?? this.id, title: title ?? this.title);
+  int getId(User value) {
+    return value.autoId;
   }
 }
 
-class PostContent {
-  final int id; //auto generated id
-  final int postId;
-  final String content;
-
-  const PostContent({this.id = 0, required this.postId, required this.content});
-
-  Map<String, dynamic> toJson() {
-    return {'id': id, 'postId': postId, 'content': content};
+class CarAdapter extends TDAdapter<Car> {
+  @override
+  getFieldValue(Car value, String fieldName) {
+    if (fieldName == 'userId') return value.userId;
   }
 
-  factory PostContent.fromJson(Map<String, dynamic> json) {
-    return PostContent(
-      id: json['id'],
-      postId: json['postId'],
-      content: json['content'],
+  @override
+  Car fromMap(Map<String, dynamic> map) {
+    return Car.fromMap(map);
+  }
+
+  @override
+  int getUniqueFieldId() {
+    return 2;
+  }
+
+  @override
+  Map<String, dynamic> toMap(Car value) {
+    return value.toMap();
+  }
+
+  @override
+  int getId(Car value) {
+    return value.autoId;
+  }
+}
+
+class User {
+  final int autoId;
+  final String name;
+  User({this.autoId = 0, required this.name});
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{'autoId': autoId, 'name': name};
+  }
+
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User(autoId: map['autoId'] as int, name: map['name'] as String);
+  }
+  @override
+  String toString() {
+    return 'ID: $autoId - Name: $name';
+  }
+
+  User copyWith({int? autoId, String? name}) {
+    return User(autoId: autoId ?? this.autoId, name: name ?? this.name);
+  }
+}
+
+class Car {
+  final int autoId;
+  final int userId;
+  final String name;
+  Car({this.autoId = 0, required this.userId, required this.name});
+
+  @override
+  String toString() {
+    return 'ID: $autoId - Name: $name userId: $userId';
+  }
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{'autoId': autoId, 'userId': userId, 'name': name};
+  }
+
+  factory Car.fromMap(Map<String, dynamic> map) {
+    return Car(
+      autoId: map['autoId'] as int,
+      userId: map['userId'] as int,
+      name: map['name'] as String,
+    );
+  }
+}
+
+class BoxListener implements TBoxEventListener {
+  @override
+  void onTBoxDatabaseChanged(TBEventType event, int? id) {
+    print('[BoxListener]: event:$event - id: $id');
+  }
+}
+
+class DBListener implements TBEventListener {
+  @override
+  void onTBDatabaseChanged(TBEventType event, int uniqueFieldId, int? id) {
+    print(
+      '[DBListener]: event:$event - uniqueFieldId: $uniqueFieldId - id: $id',
     );
   }
 }
