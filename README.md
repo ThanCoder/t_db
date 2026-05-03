@@ -29,19 +29,7 @@ If you attempt to open a database created with a previous version, the system wi
 - **Query and streaming API**
 - **Event listeners** for add/update/delete
 - **Automatic compaction** to reduce file size
-- **Database HBRelation** -> Database Relation
 - **Backup support during compaction**
-
----
-
-## 📦 Installation
-
-Add to `pubspec.yaml`:
-
-```yaml
-dependencies:
-  t_db: ^1.2.0
-```
 
 ---
 
@@ -98,37 +86,6 @@ db.setAdapter<User>(UserAdapter());
 ```
 
 ---
-
-## HBRelation
-
-```dart
-enum RelationAction {
-  none,// `none` → `let developer handle`
-  cascade,// `cascade` → `remove/update children together`
-  restrict,// `restrict` → `prevent delete/update if children exist`
-}
-
-// parent
-class UserAdapter extends TDAdapter<User> {
-  @override
-  List<HBRelation> relations() {
-    return [
-      HBRelation(
-        targetType: Car,
-        foreignKey: 'userId',
-        onDelete: RelationAction.cascade,
-      ),
-    ];
-  }
-}
-// target
-class CarAdapter extends TDAdapter<Car> {
-  @override
-  getFieldValue(Car value, String fieldName) {
-    if (fieldName == 'userId') return value.userId;   /// 🔑 IMPORTANT
-  }
-}
-```
 
 ## ✨ Basic Operations
 
@@ -234,27 +191,26 @@ Each Box only accesses records that match its adapter's unique field ID.
 ### 📌 TDBox`<T>` Class Structure
 
 ```dart
-class TDBox<T> {
-  final TDB _db;
-  TDBox(this._db);
+abstract class TDBoxInterface<T> {
+  ///
+  /// ### Add Single
+  ///
+  Future<T?> add(T value);
 
-  Future<List<T>> getAll();
-  Future<List<T>> queryAll(bool Function(T value) test);
-  Stream<T> getAllStream();
-  Stream<T> queryAllStream(bool Function(T value) test);
-  Future<T?> getOne(bool Function(T value) test);
-
-  Future<int> add(T value);
   Future<void> addAll(List<T> values);
+
+  Future<bool> updateById(int id, T value);
   Future<bool> deleteById(int id);
   Future<void> deleteAll(List<int> idList);
-  Future<bool> updateById(int id, T value);
-  Future<bool> update(T value);
+  Future<List<T>> getAll();
+  Future<T?> getOne(bool Function(T value) test);
+  // query
+  Future<List<T>> getQuery(bool Function(T value) test);
 
-  final List<TBoxEventListener> _listener = [];
-  void addListener(TBoxEventListener listener);
-  void removeListener(TBoxEventListener listener);
-  void notify(TBEventType event, int? id);
+  // Stream
+  Stream<T> getAllStream();
+  Stream<List<T>> getQueryStream(bool Function(T value) test);
+  Stream<T?> getOneStream(bool Function(T value) test);
 }
 ```
 
@@ -337,22 +293,6 @@ await userBox.deleteAll([1, 2, 3]);
 `TDBox<T>` supports reactive data listening.
 Events: `add`, `update`, `delete`.
 
-### Add Listener
-
-```dart
-userBox.addListener(TBoxEventListener(
-  onTBoxDatabaseChanged: (event, id) {
-    print('Box event: $event  id: $id');
-  },
-));
-```
-
-### Remove Listener
-
-```dart
-userBox.removeListener(listener);
-```
-
 ---
 
 (Similar to Hive)
@@ -365,9 +305,10 @@ final userBox = db.getBox<User>();
 ### You can listen for changes
 
 ```dart
-userBox.stream.listen((event) {
-  print(event.type);   // add, delete, update
-  print(event.id);      // affected record
+// TDBoxStreamCRUDEvent
+// TDBoxStreamErrorEvent
+db.boxStream.listen((event) {
+    print(event);
 });
 ```
 
@@ -403,34 +344,6 @@ You can also run compaction manually:
 ```dart
 await db.compact();
 ```
-
----
-
-## 🔄 Event Listener
-
-```dart
-db.addListener(TBEventListener(
-  onTBDatabaseChanged: (event, typeId, id) {
-    print('Event: $event, type: $typeId, id: $id');
-  },
-));
-```
-
----
-
-## 📁 Database Structure
-
-Each record is stored as:
-
-```
-[length][id][typeId][flag][payload]
-```
-
-- `length` — record byte size
-- `id` — auto increment
-- `typeId` — from adapter
-- `flag` — normal or deleted
-- `payload` — compressed or uncompressed map data
 
 ---
 

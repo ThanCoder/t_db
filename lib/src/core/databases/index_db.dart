@@ -9,7 +9,6 @@ import 'package:t_db/src/core/type/db_meta.dart';
 
 class IndexDB {
   late final File dbFile;
-  late final File lockFile;
   late final RandomAccessFile _writeRaf;
   late final RandomAccessFile _readRaf;
   late DBConfig _config;
@@ -36,7 +35,6 @@ class IndexDB {
 
   void setConfig({required File dbFile, required DBConfig config}) {
     this.dbFile = dbFile;
-    lockFile = File('${dbFile.path}.lock');
     _config = config;
   }
 
@@ -70,6 +68,7 @@ class IndexDB {
     _version = version;
     _type = type;
     _records.clear();
+    _lastId = 0;
 
     while (await _readRaf.position() < size) {
       final flag = await _readRaf.readByte();
@@ -98,6 +97,7 @@ class IndexDB {
   ///
   Future<int> addRecord({
     int uniqueFieldId = -1,
+    required int id,
     required Uint8List jsonData,
   }) async {
     final offset = await _writeRaf.position();
@@ -106,7 +106,7 @@ class IndexDB {
     // unique field id
     await _writeRaf.writeFrom(intToBytes4(uniqueFieldId));
     // db id
-    await _writeRaf.writeFrom(intToBytes8(getGeneratedId));
+    await _writeRaf.writeFrom(intToBytes8(id));
     // write data length
     await _writeRaf.writeFrom(intToBytes4(jsonData.length)); // json length byte
 
@@ -114,37 +114,119 @@ class IndexDB {
     await _writeRaf.writeFrom(jsonData);
 
     // add memory
-    final newMeta = await RecordMeta.read(_readRaf, headerOffset: offset);
+    final newMeta = RecordMeta(
+      id: id,
+      uniqueFieldId: uniqueFieldId,
+      offset: offset,
+      dataSize: jsonData.length,
+      recordTotalSize: recordMetaHeaderSize + jsonData.length,
+    );
     _records.add(newMeta);
-
-    await _writeRaf.flush();
 
     return offset;
   }
 
   ///
+  /// ### Update by id
+  ///
+  Future<bool> updateById(
+    int id, {
+    int uniqueFieldId = -1,
+    required Uint8List jsonData,
+  }) async {
+    final isDeleted = await deleteById(id, writeDiskFlush: true);
+    // delete မလုပ်နိုင်ဘူး
+    if (!isDeleted) return false;
+    // add data
+    await addRecord(id: id, uniqueFieldId: uniqueFieldId, jsonData: jsonData);
+    // autoCompact
+    mabyCompact();
+    return true;
+  }
+
+  ///
   /// ### Delete By Id
   ///
-  Future<bool> deleteById(int id) async {
+  Future<bool> deleteById(int id, {bool writeDiskFlush = false}) async {
     final index = _records.indexWhere((e) => e.id == id);
+    // print('index: $index - id: $id');
     if (index == -1) return false;
 
     final lastOffset = await _writeRaf.position();
 
-    // go header offset
     final record = _records[index];
+    // go header offset
     await _writeRaf.setPosition(record.offset);
 
     //delete mark
     await _writeRaf.writeByte(DBFlag.Flag_Delete);
+    // remove RAM
+    _records.removeAt(index);
+    _deletedCount++;
+    _deletedSize += record.recordTotalSize;
 
     //go back end position
     await _writeRaf.setPosition(lastOffset);
 
     // dist ထဲရေးသွင်း
-    await _writeRaf.flush();
+    if (writeDiskFlush) {
+      await writeFlush();
+      mabyCompact();
+    }
 
     return true;
+  }
+
+  /// ---- Compact ----
+
+  Future<void> mabyCompact() async {
+    if (deletedCount == 0) return;
+    if (deletedCount > _config.minDeletedCount &&
+        deletedSize > _config.minDeletedSize) {
+      await compact();
+    }
+  }
+
+  Future<void> compact() async {
+    if (_deletedCount == 0) return;
+
+    final compactFile = File('${dbFile.path}.compact-tem');
+    final compactRaf = await compactFile.open(mode: FileMode.write);
+
+    await BinaryRW.writeHeader(
+      compactRaf,
+      version: _config.dbVersion,
+      type: _config.dbType,
+    );
+
+    final bufferSize = 1024 * 1024;
+    final buffer = Uint8List(bufferSize);
+
+    for (var meta in _records) {
+      // go meta header
+      await readRaf.setPosition(meta.offset);
+      int bytesToRead = meta.recordTotalSize;
+
+      while (bytesToRead > 0) {
+        final currentReadSize = bytesToRead > bufferSize
+            ? bufferSize
+            : bytesToRead;
+
+        final bytesRead = await readRaf.readInto(buffer, 0, currentReadSize);
+        // ရေးထည့်မယ်
+        await compactRaf.writeFrom(buffer, 0, bytesRead);
+
+        //ဖတ်ပြီးသားကို နှုတ်ချထား
+        bytesToRead -= currentReadSize;
+      }
+    }
+
+    await compactRaf.close();
+    //rename
+    if (dbFile.existsSync()) {
+      await dbFile.delete();
+    }
+    await compactFile.rename(dbFile.path);
   }
 
   bool get isOpened {
@@ -155,6 +237,10 @@ class IndexDB {
     } catch (e) {
       return false;
     }
+  }
+
+  Future<void> writeFlush() async {
+    await _writeRaf.flush();
   }
 
   Future<void> close() async {

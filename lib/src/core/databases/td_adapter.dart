@@ -19,8 +19,7 @@ abstract class TDAdapter<T> {
   Map<String, dynamic> fromJson(String source) => jsonDecode(source);
 
   // set autoId
-  Map<String, dynamic> setAutoId(T value, int autoId) {
-    final map = toMap(value);
+  Map<String, dynamic> setAutoId(Map<String, dynamic> map, int autoId) {
     map['autoId'] = autoId;
     return map;
   }

@@ -2,8 +2,6 @@ abstract class TDBoxInterface<T> {
   ///
   /// ### Add Single
   ///
-  /// `parentId` ?? `adapter.getParentId(value)`
-  ///
   Future<T?> add(T value);
 
   Future<void> addAll(List<T> values);

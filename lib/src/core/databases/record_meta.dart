@@ -32,6 +32,11 @@ class RecordMeta {
     return data;
   }
 
+  @override
+  String toString() {
+    return 'ID: $id - Offset: $offset';
+  }
+
   static Future<RecordMeta> readFromIndexDB(RandomAccessFile raf) async {
     final headerOffset = (await raf.position() - 1);
 

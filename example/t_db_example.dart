@@ -1,8 +1,8 @@
 import 'package:t_db/t_db.dart';
 
-import 'tdb_models/apyar.dart';
-
 void main() async {
+  // print(await TDB.readHeader('test.db'));
+
   final db = TDB.getInstance();
 
   await db.open(
@@ -10,31 +10,29 @@ void main() async {
     'test.db',
     config: DBConfig.getDefault().copyWith(saveLocalDBLock: false),
   );
-  db.setAdapter<Apyar>(ApyarAdapter());
+  db.setAdapter<User>(UserAdapter());
 
-  final apyarBox = db.getBox<Apyar>();
-  // await apyarBox.add(Apyar(title: 'one', date: DateTime.now()));
+  await db.compact();
 
-  for (var item in await apyarBox.getAll()) {
-    print(item);
+  final userBox = db.getBox<User>();
+
+  // await userBox.add(User(name: 'user one'));
+  // await userBox.add(User(name: 'user two'));
+  // await userBox.add(User(name: 'user three'));
+  await userBox.deleteById(3);
+  // await userBox.updateById(3, User(name: 'three update'));
+
+  for (var user in await userBox.getAll()) {
+    print(user);
   }
+  print(db.getUniqueFieldIdList);
 
-  // print(db.isDataRecordCreatedExists);
-
-  // db.setAdapter<User>(UserAdapter());
-  // db.setAdapter<Car>(CarAdapter());
-
-  // final box = db.getBox<User>();
-  // final carBox = db.getBox<Car>();
-
-  // // final id = await box.add(User(name: 'ThanCoder'));
-  // // await carBox.add(Car(userId: id, name: 'ThanCoder Car $id'));
-
-  // print(await box.getAll());
-  // print(await carBox.getAll());
+  print('magic: ${db.magic}');
+  print('type: ${db.type}');
+  print('version: ${db.version}');
+  print('lastId: ${db.lastId}');
   print('deletedCount: ${db.deletedCount}');
   print('deletedSize: ${db.deletedSize}');
-
   await db.close();
 }
 
@@ -100,9 +98,7 @@ class User {
     return User(autoId: map['autoId'] as int, name: map['name'] as String);
   }
   @override
-  String toString() {
-    return 'ID: $autoId - Name: $name';
-  }
+  String toString() => '''User(autoId: $autoId, name: $name)''';
 
   User copyWith({int? autoId, String? name}) {
     return User(autoId: autoId ?? this.autoId, name: name ?? this.name);
@@ -129,22 +125,6 @@ class Car {
       autoId: map['autoId'] as int,
       userId: map['userId'] as int,
       name: map['name'] as String,
-    );
-  }
-}
-
-class BoxListener implements TBoxEventListener {
-  @override
-  void onTBoxDatabaseChanged(TBEventType event, int? id) {
-    print('[BoxListener]: event:$event - id: $id');
-  }
-}
-
-class DBListener implements TBEventListener {
-  @override
-  void onTBDatabaseChanged(TBEventType event, int uniqueFieldId, int? id) {
-    print(
-      '[DBListener]: event:$event - uniqueFieldId: $uniqueFieldId - id: $id',
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:t_db/src/core/databases/index_db.dart';
+import 'package:t_db/src/core/events/td_box_events.dart';
 import 'package:t_db/src/core/rw/binary_rw.dart';
 import 'package:t_db/src/core/type/db_config.dart';
 import 'package:t_db/src/core/databases/td_adapter.dart';
@@ -20,6 +21,11 @@ class TDB {
   final _indexDB = IndexDB();
   final Map<Type, TDAdapter> _adapter = {};
   final Map<Type, TDBox> _box = {};
+
+  /// --- Event Listener ---
+  // stream
+  final _boxStreamController = StreamController<TDBoxStreamEvent>.broadcast();
+  Stream<TDBoxStreamEvent> get boxStream => _boxStreamController.stream;
 
   ///
   /// ## Open Database
@@ -46,12 +52,9 @@ class TDB {
   ///
   /// Reset DB Class
   ///
-  Future<void> restart() async {
+  Future<void> restart({DBConfig? config}) async {
     await close();
-    if (_indexDB.lockFile.existsSync()) {
-      await _indexDB.lockFile.delete();
-    }
-    await open(_indexDB.dbFile.path);
+    await open(_indexDB.dbFile.path, config: config);
   }
 
   /// --- Adapter ---
@@ -62,9 +65,18 @@ class TDB {
   ///Usage //`db.setAdapter<User>(UserAdapter());`
   ///
   void setAdapter<T>(TDAdapter<T> adapter) {
+    final ids = _adapter.values.map((e) => e.getUniqueFieldId()).toList();
+    if (ids.contains(adapter.getUniqueFieldId())) {
+      throw Exception(
+        "Duplicate Adapter: `${adapter.runtimeType}` Unique id detected: `${adapter.getUniqueFieldId()}`",
+      );
+    }
     _adapter[T] = adapter;
-    _box[T] = TDBox<T>(indexDB: _indexDB,adapter: adapter);
-    _checkAdapterUinqueId<T>(adapter);
+    _box[T] = TDBox<T>(
+      indexDB: _indexDB,
+      adapter: adapter,
+      streamController: _boxStreamController,
+    );
   }
 
   ///
@@ -78,8 +90,11 @@ class TDB {
     if (ids.contains(adapter.getUniqueFieldId())) return;
 
     _adapter[T] = adapter;
-    _box[T] = TDBox<T>(indexDB: _indexDB,adapter: adapter);
-    _checkAdapterUinqueId<T>(adapter);
+    _box[T] = TDBox<T>(
+      indexDB: _indexDB,
+      adapter: adapter,
+      streamController: _boxStreamController,
+    );
   }
 
   ///
@@ -89,7 +104,6 @@ class TDB {
     _adapter.clear();
     _box.clear();
   }
-
 
   ///
   /// ### Get Box`<T>`
@@ -102,22 +116,6 @@ class TDB {
       throw Exception('Box<$T> not found. Did you setAdapter<$T>()?');
     }
     return box as TDBox<T>;
-  }
-
-  ///
-  /// check adapter unique id
-  ///
-  void _checkAdapterUinqueId<T>(TDAdapter<T> adapter) {
-    final ids = <int>{};
-    for (var map in _adapter.values) {
-      final id = map.getUniqueFieldId();
-      if (ids.contains(id)) {
-        throw Exception(
-          "Duplicate Adapter: `${adapter.runtimeType}` Unique id detected: `$id`",
-        );
-      }
-      ids.add(id);
-    }
   }
 
   ///
@@ -136,6 +134,48 @@ class TDB {
   }
 
   ///
+  /// ### Manual Compact
+  ///
+  Future<void> compact() async {
+    await _indexDB.compact();
+  }
+
+  // ---- Static ----- //
+  ///
+  /// ### Read Header
+  ///
+  /// Return (magic,version,type)
+  ///
+  static Future<(String, int, String)> readHeader(
+    String dbPath, {
+    String? requiredType,
+    int? requiredVersion,
+  }) async {
+    final file = File(dbPath);
+    if (!file.existsSync()) {
+      throw Exception('DB File Not Found!');
+    }
+    final raf = await file.open(mode: FileMode.read);
+
+    final (magic, version, type) = await BinaryRW.readHeader(raf);
+    if (requiredType != null) {
+      if (type != requiredType) {
+        throw Exception(
+          'Invalid DB Database `Type`: Excepted `$requiredType` Got `$type`',
+        );
+      }
+    }
+    if (requiredVersion != null) {
+      if (version != requiredVersion) {
+        throw Exception(
+          'Invalid DB Database `Version`: Excepted `$requiredVersion` Got `$version`',
+        );
+      }
+    }
+    return (type, version, type);
+  }
+
+  ///
   /// ### Check Data Record
   ///
   bool get isDataRecordCreatedExists {
@@ -145,20 +185,16 @@ class TDB {
     return false;
   }
 
-  ///
-  /// ### Get DB Header
-  ///
-  // Future<TDBHeader> getHeader() async {
-  //   final raf = await dbFile.open();
-  //   final (magic, version, type) = await BinaryRW.readHeader(raf);
-  //   await raf.close();
-  //   return TDBHeader(magic: magic, version: version, type: type);
-  // }
+  int get version => _indexDB.version;
+
+  String get magic => _indexDB.magic;
+
+  String get type => _indexDB.type;
 
   ///
   /// ### Database Added LastId
   ///
-  int get getLastId => _indexDB.lastId;
+  int get lastId => _indexDB.lastId;
 
   ///
   /// ### Database Deleted Count
@@ -173,51 +209,6 @@ class TDB {
   ///
   /// ### Database Unique Field List
   ///
-  // List<int> get getUniqueFieldIdList => _indexDB.uniqueFieldIdList;
-
-  ///
-  /// --- Static ----
-  ///
-  /// ### Get Header From DB Path
-  ///
-  // static Future<TDBHeader?> getHeaderFromPath(String path) async {
-  //   final file = File(path);
-  //   if (!file.existsSync()) return null;
-  //   final raf = await file.open();
-  //   final (magic, version, type) = await BinaryRW.readHeader(raf);
-  //   await raf.close();
-
-  //   return TDBHeader(magic: magic, version: version, type: type);
-  // }
-
-  ///
-  /// --- Event Listener ---
-  ///
-  // final List<TBEventListener> _listener = [];
-
-  // void addListener(TBEventListener listener) {
-  //   _listener.add(listener);
-  // }
-
-  // void removeListener(TBEventListener listener) {
-  //   _listener.remove(listener);
-  // }
-
-  // void notify<T>(TBEventType event, int uniqueFieldId, int? id) {
-  // stream
-  //   _streamController.add(
-  //     TBStreamEvent(uniqueFieldId: uniqueFieldId, type: event, id: id),
-  //   );
-  //   for (var listener in _listener) {
-  //     listener.onTBDatabaseChanged(event, uniqueFieldId, id);
-  //   }
-  //   // send box notify
-  //   final box = _box[T];
-  //   if (box == null) return;
-  //   box.notify(event, id);
-  // }
-
-  // stream
-  //   final _streamController = StreamController<TBStreamEvent>.broadcast();
-  //   Stream<TBStreamEvent> get stream => _streamController.stream;
+  List<int> get getUniqueFieldIdList =>
+      _indexDB.records.map((e) => e.uniqueFieldId).toSet().toList();
 }

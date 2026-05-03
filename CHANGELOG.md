@@ -1,4 +1,9 @@
-# 1.4.0
+# 2.0.0
+
+- Updated `Old Core Code.`
+- Fixed `Know Some Errors.`
+
+## 1.4.0
 
 - Added `setAdapterNotExists<T>`
 - Added `clearAdapter`
