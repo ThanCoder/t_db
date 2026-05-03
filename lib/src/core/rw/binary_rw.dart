@@ -5,11 +5,9 @@ import 'package:t_db/src/core/utils/encoder.dart';
 import 'package:t_db/src/core/type/db_config.dart';
 import 'package:t_db/src/core/type/db_meta.dart';
 
-
-
 class BinaryRW {
   ///
-  /// 
+  ///
   /// ### DB Header Byte Length
   ///
   static int get headerByteLength => 9;
@@ -73,7 +71,7 @@ class BinaryRW {
   }) async {
     final jsonData = encodeRecordCompress4(map);
 
-    await raf.writeByte(DBMeta.Flag_Active);
+    await raf.writeByte(DBFlag.Flag_Active);
     // unique field id
     await raf.writeFrom(intToBytes4(uniqueFieldId));
     // db id
@@ -151,12 +149,12 @@ class BinaryRW {
       final length = bytesToInt4(await raf.read(4));
       final current = await raf.position();
       // is deleted mark
-      if (DBMeta.isDeleted(flag)) {
+      if (DBFlag.isDeleted(flag)) {
         await raf.setPosition(current + length);
       } else {
         final jsonDataBytes = await raf.read(length);
         // add tem file
-        await outRaf.writeByte(DBMeta.Flag_Active);
+        await outRaf.writeByte(DBFlag.Flag_Active);
         // unique field id
         await outRaf.writeFrom(intToBytes4(uniqueFieldId));
         // db id

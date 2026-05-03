@@ -3,6 +3,9 @@ import 'dart:typed_data';
 
 import 'package:t_db/src/core/utils/encoder.dart';
 
+///
+/// ### Header (17 Bytes) : [Flag(1),uniqueFieldId(4),id(8),jsonDataLength(4)]
+///
 const int recordMetaHeaderSize = 17;
 
 class RecordMeta {
@@ -31,6 +34,31 @@ class RecordMeta {
 
   static Future<RecordMeta> readFromIndexDB(RandomAccessFile raf) async {
     final headerOffset = (await raf.position() - 1);
+
+    final uniqueFieldId = bytesToInt4(await raf.read(4));
+    final id = bytesToInt8(await raf.read(8));
+    final dataSize = bytesToInt4(await raf.read(4));
+
+    final current = await raf.position();
+    await raf.setPosition(current + dataSize);
+
+    return RecordMeta(
+      id: id,
+      uniqueFieldId: uniqueFieldId,
+      offset: headerOffset,
+      dataSize: dataSize,
+      recordTotalSize: recordMetaHeaderSize + dataSize,
+    );
+  }
+
+  static Future<RecordMeta> read(
+    RandomAccessFile raf, {
+    required int headerOffset,
+  }) async {
+    await raf.setPosition(headerOffset);
+
+    // flag
+    final _ = await raf.readByte();
 
     final uniqueFieldId = bytesToInt4(await raf.read(4));
     final id = bytesToInt8(await raf.read(8));

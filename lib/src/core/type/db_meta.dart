@@ -1,6 +1,6 @@
 // ignore_for_file: non_constant_identifier_names
 
-class DBMeta {
+class DBFlag {
   static final int Flag_Delete = 0;
   static final int Flag_Active = 1;
 

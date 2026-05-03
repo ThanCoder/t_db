@@ -6,12 +6,14 @@ void main() async {
   final db = TDB.getInstance();
 
   await db.open(
-    '/home/thancoder/Downloads/Apyar App/apyar.db',
+    // '/home/thancoder/Downloads/Apyar App/apyar.db',
+    'test.db',
     config: DBConfig.getDefault().copyWith(saveLocalDBLock: false),
   );
   db.setAdapter<Apyar>(ApyarAdapter());
 
   final apyarBox = db.getBox<Apyar>();
+  // await apyarBox.add(Apyar(title: 'one', date: DateTime.now()));
 
   for (var item in await apyarBox.getAll()) {
     print(item);

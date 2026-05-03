@@ -1,15 +1,57 @@
 import 'dart:async';
 
 import 'package:t_db/src/core/databases/index_db.dart';
+import 'package:t_db/src/core/databases/td_box_interface.dart';
 import 'package:t_db/t_db.dart';
 
-class TDBox<T> {
+class TDBox<T> extends TDBoxInterface<T> {
   late final IndexDB _indexDB;
   late final TDAdapter<T> _adapter;
   TDBox({required IndexDB indexDB, required TDAdapter<T> adapter})
     : _indexDB = indexDB,
       _adapter = adapter;
-  
+
+  // stream
+  final _streamController = StreamController<TDBoxStreamEvent>.broadcast();
+  Stream<TDBoxStreamEvent> get stream => _streamController.stream;
+
+  @override
+  Future<T?> add(T value) async {
+    try {
+      final id = _indexDB.getGeneratedId;
+      // map['autoId'] = id;
+      final map = _adapter.setAutoId(value, id);
+      final newValue = _adapter.fromMap(map);
+      final jsonData = _adapter.encodeRecord(_adapter.toJson(newValue));
+      await _indexDB.addRecord(
+        jsonData: jsonData,
+        uniqueFieldId: _adapter.getUniqueFieldId(),
+      );
+      return newValue;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> addAll(List<T> values) {
+    // TODO: implement addAll
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteAll(List<int> idList) {
+    // TODO: implement deleteAll
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> deleteById(int id) {
+    // TODO: implement deleteById
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<T>> getAll() async {
     final uniqueFieldId = _adapter.getUniqueFieldId();
     final list = <T>[];
@@ -25,55 +67,69 @@ class TDBox<T> {
     return list;
   }
 
-  // Future<T?> getById(int id) async {
-  //   return await _db.getById<T>(id);
-  // }
+  @override
+  Stream<T> getAllStream() async* {
+    final uniqueFieldId = _adapter.getUniqueFieldId();
+    for (var meta in _indexDB.records) {
+      // skip
+      if (meta.uniqueFieldId != uniqueFieldId) continue;
 
-  // Future<T?> getOne(bool Function(T value) test) async {
-  //   return await _db.getOne<T>(test);
-  // }
+      final jsonDataBytes = await meta.readData(_indexDB.readRaf);
+      final map = _adapter.fromJson(_adapter.decodeRecord(jsonDataBytes));
+      yield _adapter.fromMap(map);
+    }
+  }
 
-  // Future<List<T>> queryAll(bool Function(T value) test) async {
-  //   return await _db.queryAll<T>(test);
-  // }
+  @override
+  Future<T?> getOne(bool Function(T value) test) async {
+    for (var item in await getAll()) {
+      if (test(item)) {
+        return item;
+      }
+    }
+    return null;
+  }
 
-  // Stream<T> getAllStream() {
-  //   return _db.getAllStream<T>();
-  // }
+  @override
+  Stream<T?> getOneStream(bool Function(T value) test) async* {
+    await for (var item in getAllStream()) {
+      if (test(item)) {
+        yield item;
+        return;
+      }
+    }
+    yield null;
+  }
 
-  // Stream<T> queryAllStream(bool Function(T value) test) {
-  //   return _db.queryAllStream<T>(test);
-  // }
+  @override
+  Future<List<T>> getQuery(bool Function(T value) test) async {
+    final list = <T>[];
 
-  // Future<int> add(T value) async {
-  //   final newId = await _db.add<T>(value);
-  //   return newId;
-  // }
+    for (var item in await getAll()) {
+      if (test(item)) {
+        list.add(item);
+      }
+    }
+    return list;
+  }
 
-  // Future<void> addAll(List<T> values) async {
-  //   await _db.addAll<T>(values);
-  // }
+  @override
+  Stream<List<T>> getQueryStream(bool Function(T value) test) async* {
+    final list = <T>[];
 
-  // Future<bool> deleteById(int id) async {
-  //   return await _db.deleteById<T>(id);
-  // }
+    await for (var item in getAllStream()) {
+      if (test(item)) {
+        list.add(item);
+      }
+    }
+    yield list;
+  }
 
-  // Future<bool> delete(T value) async {
-  //   return await _db.delete<T>(value);
-  // }
-
-  // Future<bool> deleteAll(List<int> idList) async {
-  //   return await _db.deleteAll<T>(idList);
-  // }
-
-  // Future<bool> deleteAllRecord() async {
-  //   return await _db.deleteAllRecord<T>();
-  // }
-
-  // Future<bool> updateById(int id, T value) async {
-  //   final isUpdated = await _db.updateById<T>(id, value);
-  //   return isUpdated;
-  // }
+  @override
+  Future<bool> updateById(int id, T value) {
+    // TODO: implement updateById
+    throw UnimplementedError();
+  }
 
   /// --- Event Listener ---
 
@@ -95,10 +151,6 @@ class TDBox<T> {
       listener.onTBoxDatabaseChanged(event, id);
     }
   }
-
-  // stream
-  final _streamController = StreamController<TDBoxStreamEvent>.broadcast();
-  Stream<TDBoxStreamEvent> get stream => _streamController.stream;
 }
 
 class TDBoxStreamEvent {

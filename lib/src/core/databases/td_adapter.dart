@@ -18,6 +18,13 @@ abstract class TDAdapter<T> {
   String toJson(T value) => jsonEncode(toMap(value));
   Map<String, dynamic> fromJson(String source) => jsonDecode(source);
 
+  // set autoId
+  Map<String, dynamic> setAutoId(T value, int autoId) {
+    final map = toMap(value);
+    map['autoId'] = autoId;
+    return map;
+  }
+
   // compressor
   Uint8List encodeRecord(String jsonData) =>
       encodeRecordCompress4Json(jsonData);

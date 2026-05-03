@@ -56,7 +56,7 @@ class IndexDB {
     await _load();
   }
 
-  int get _getGeneratedId {
+  int get getGeneratedId {
     _lastId++;
     return _lastId;
   }
@@ -77,7 +77,7 @@ class IndexDB {
 
       final meta = await RecordMeta.readFromIndexDB(_readRaf);
 
-      if (DBMeta.isActive(flag)) {
+      if (DBFlag.isActive(flag)) {
         _records.add(meta);
       } else {
         //delete
@@ -102,16 +102,22 @@ class IndexDB {
   }) async {
     final offset = await _writeRaf.position();
 
-    await _writeRaf.writeByte(DBMeta.Flag_Active);
+    await _writeRaf.writeByte(DBFlag.Flag_Active);
     // unique field id
     await _writeRaf.writeFrom(intToBytes4(uniqueFieldId));
     // db id
-    await _writeRaf.writeFrom(intToBytes8(_getGeneratedId));
+    await _writeRaf.writeFrom(intToBytes8(getGeneratedId));
     // write data length
     await _writeRaf.writeFrom(intToBytes4(jsonData.length)); // json length byte
 
     // write data
     await _writeRaf.writeFrom(jsonData);
+
+    // add memory
+    final newMeta = await RecordMeta.read(_readRaf, headerOffset: offset);
+    _records.add(newMeta);
+
+    await _writeRaf.flush();
 
     return offset;
   }
@@ -130,7 +136,7 @@ class IndexDB {
     await _writeRaf.setPosition(record.offset);
 
     //delete mark
-    await _writeRaf.writeByte(DBMeta.Flag_Delete);
+    await _writeRaf.writeByte(DBFlag.Flag_Delete);
 
     //go back end position
     await _writeRaf.setPosition(lastOffset);

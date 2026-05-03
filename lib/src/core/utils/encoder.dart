@@ -24,7 +24,7 @@ Uint8List intToBytes4(int value) {
 
 int bytesToInt4(Uint8List bytes) {
   final buffer = ByteData.sublistView(bytes);
-  return buffer.getInt32(0);
+  return buffer.getInt32(0, Endian.big);
 }
 
 Uint8List intToBytes8(int value) {
@@ -34,7 +34,7 @@ Uint8List intToBytes8(int value) {
 
 int bytesToInt8(Uint8List bytes) {
   final buffer = ByteData.sublistView(bytes);
-  return buffer.getInt64(0);
+  return buffer.getInt64(0, Endian.big);
 }
 
 // zlib
