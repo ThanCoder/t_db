@@ -8,9 +8,9 @@ import 'package:t_db/src/core/rw/binary_rw.dart';
 import 'package:t_db/src/core/type/db_meta.dart';
 
 class IndexDB {
-  late final File dbFile;
-  late final RandomAccessFile _writeRaf;
-  late final RandomAccessFile _readRaf;
+  late File dbFile;
+  late RandomAccessFile _writeRaf;
+  late RandomAccessFile _readRaf;
   late DBConfig _config;
 
   RandomAccessFile get readRaf => _readRaf;

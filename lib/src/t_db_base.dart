@@ -31,6 +31,7 @@ class TDB {
   /// ## Open Database
   ///
   Future<void> open(String dbPath, {DBConfig? config}) async {
+    if (isOpened) return;
     _indexDB.setConfig(
       dbFile: File(dbPath),
       config: config ?? DBConfig.getDefault(),
