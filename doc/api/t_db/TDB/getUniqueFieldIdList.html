@@ -74,7 +74,7 @@
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">List&lt;int&gt; get getUniqueFieldIdList =&gt;
-    _indexDB.records.map((e) =&gt; e.uniqueFieldId).toSet().toList();</code></pre>
+    _indexDB.records.values.map((e) =&gt; e.uniqueFieldId).toSet().toList();</code></pre>
 </section>
 
   </section>
@@ -104,7 +104,7 @@
 <footer>
   <span class="no-break">
     t_db
-      2.0.0
+      2.1.0
   </span>
   
 </footer>

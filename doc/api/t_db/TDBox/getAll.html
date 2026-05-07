@@ -75,7 +75,7 @@
 Future&lt;List&lt;T&gt;&gt; getAll() async {
   final uniqueFieldId = _adapter.getUniqueFieldId();
   final list = &lt;T&gt;[];
-  for (var meta in _indexDB.records) {
+  for (var meta in _indexDB.records.values) {
     &#47;&#47; skip
     if (meta.uniqueFieldId != uniqueFieldId) continue;
 
@@ -114,7 +114,7 @@ Future&lt;List&lt;T&gt;&gt; getAll() async {
 <footer>
   <span class="no-break">
     t_db
-      2.0.0
+      2.1.0
   </span>
   
 </footer>
