@@ -98,7 +98,7 @@ class TDBox<T> extends TDBoxInterface<T> {
   Future<List<T>> getAll() async {
     final uniqueFieldId = _adapter.getUniqueFieldId();
     final list = <T>[];
-    for (var meta in _indexDB.records) {
+    for (var meta in _indexDB.records.values) {
       // skip
       if (meta.uniqueFieldId != uniqueFieldId) continue;
 
@@ -114,7 +114,7 @@ class TDBox<T> extends TDBoxInterface<T> {
   @override
   Stream<T> getAllStream() async* {
     final uniqueFieldId = _adapter.getUniqueFieldId();
-    for (var meta in _indexDB.records) {
+    for (var meta in _indexDB.records.values) {
       // skip
       if (meta.uniqueFieldId != uniqueFieldId) continue;
 

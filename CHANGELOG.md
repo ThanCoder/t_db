@@ -1,4 +1,8 @@
-# 2.0.0
+# 2.1.0
+
+- Fixed `Know Some Errors.`
+
+## 2.0.0
 
 - Updated `Old Core Code.`
 - Fixed `Know Some Errors.`

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:t_db/src/core/utils/encoder.dart';
+import 'package:t_db/t_db.dart';
 
 ///
 /// ### Header (17 Bytes) : [Flag(1),uniqueFieldId(4),id(8),jsonDataLength(4)]
@@ -9,6 +10,7 @@ import 'package:t_db/src/core/utils/encoder.dart';
 const int recordMetaHeaderSize = 17;
 
 class RecordMeta {
+  final bool isActive;
   final int id;
   final int uniqueFieldId;
   final int offset;
@@ -16,6 +18,7 @@ class RecordMeta {
   final int recordTotalSize;
 
   const RecordMeta({
+    required this.isActive,
     required this.id,
     required this.uniqueFieldId,
     required this.offset,
@@ -37,33 +40,15 @@ class RecordMeta {
     return 'ID: $id - Offset: $offset';
   }
 
-  static Future<RecordMeta> readFromIndexDB(RandomAccessFile raf) async {
-    final headerOffset = (await raf.position() - 1);
-
-    final uniqueFieldId = bytesToInt4(await raf.read(4));
-    final id = bytesToInt8(await raf.read(8));
-    final dataSize = bytesToInt4(await raf.read(4));
-
-    final current = await raf.position();
-    await raf.setPosition(current + dataSize);
-
-    return RecordMeta(
-      id: id,
-      uniqueFieldId: uniqueFieldId,
-      offset: headerOffset,
-      dataSize: dataSize,
-      recordTotalSize: recordMetaHeaderSize + dataSize,
-    );
-  }
-
-  static Future<RecordMeta> read(
-    RandomAccessFile raf, {
-    required int headerOffset,
-  }) async {
-    await raf.setPosition(headerOffset);
+  static Future<RecordMeta> read(RandomAccessFile raf) async {
+    final offset = await raf.position();
 
     // flag
-    final _ = await raf.readByte();
+    final flag = await raf.readByte();
+
+    if (flag == -1) {
+      throw Exception('Read Header Error ');
+    }
 
     final uniqueFieldId = bytesToInt4(await raf.read(4));
     final id = bytesToInt8(await raf.read(8));
@@ -73,9 +58,10 @@ class RecordMeta {
     await raf.setPosition(current + dataSize);
 
     return RecordMeta(
+      isActive: DBFlag.isActive(flag),
       id: id,
       uniqueFieldId: uniqueFieldId,
-      offset: headerOffset,
+      offset: offset,
       dataSize: dataSize,
       recordTotalSize: recordMetaHeaderSize + dataSize,
     );

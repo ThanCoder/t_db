@@ -19,7 +19,7 @@ void main() async {
   // await userBox.add(User(name: 'user one'));
   // await userBox.add(User(name: 'user two'));
   // await userBox.add(User(name: 'user three'));
-  await userBox.deleteById(3);
+  // await userBox.deleteById(3);
   // await userBox.updateById(3, User(name: 'three update'));
 
   for (var user in await userBox.getAll()) {

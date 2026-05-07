@@ -15,7 +15,7 @@ class IndexDB {
 
   RandomAccessFile get readRaf => _readRaf;
 
-  final List<RecordMeta> _records = [];
+  final Map<int, RecordMeta> _records = {};
   // Map<int,List<RecordMeta>>
   int _lastId = 0;
   int _deletedSize = 0;
@@ -28,7 +28,7 @@ class IndexDB {
   String get type => _type;
   int get version => _version;
 
-  List<RecordMeta> get records => _records;
+  Map<int, RecordMeta> get records => _records;
   int get lastId => _lastId;
   int get deletedSize => _deletedSize;
   int get deletedCount => _deletedCount;
@@ -71,20 +71,21 @@ class IndexDB {
     _lastId = 0;
 
     while (await _readRaf.position() < size) {
-      final flag = await _readRaf.readByte();
-      if (flag == -1) break; //EOF
+      try {
+        final meta = await RecordMeta.read(_readRaf);
 
-      final meta = await RecordMeta.readFromIndexDB(_readRaf);
-
-      if (DBFlag.isActive(flag)) {
-        _records.add(meta);
-      } else {
-        //delete
-        _deletedCount++;
-        _deletedSize += meta.recordTotalSize;
+        if (meta.isActive) {
+          _records[meta.id] = meta;
+        } else {
+          //delete
+          _deletedCount++;
+          _deletedSize += meta.recordTotalSize;
+        }
+        // set index
+        if (meta.id > _lastId) _lastId = meta.id;
+      } catch (e) {
+        break;
       }
-      // set index
-      if (meta.id > _lastId) _lastId = meta.id;
     }
 
     // print(_records);
@@ -115,13 +116,14 @@ class IndexDB {
 
     // add memory
     final newMeta = RecordMeta(
+      isActive: true,
       id: id,
       uniqueFieldId: uniqueFieldId,
       offset: offset,
       dataSize: jsonData.length,
       recordTotalSize: recordMetaHeaderSize + jsonData.length,
     );
-    _records.add(newMeta);
+    _records[newMeta.id] = newMeta;
 
     return offset;
   }
@@ -140,7 +142,7 @@ class IndexDB {
     // add data
     await addRecord(id: id, uniqueFieldId: uniqueFieldId, jsonData: jsonData);
     // autoCompact
-    mabyCompact();
+    await mabyCompact();
     return true;
   }
 
@@ -148,22 +150,21 @@ class IndexDB {
   /// ### Delete By Id
   ///
   Future<bool> deleteById(int id, {bool writeDiskFlush = false}) async {
-    final index = _records.indexWhere((e) => e.id == id);
-    // print('index: $index - id: $id');
-    if (index == -1) return false;
+    final meta = _records[id];
+
+    if (meta == null) return false;
 
     final lastOffset = await _writeRaf.position();
 
-    final record = _records[index];
     // go header offset
-    await _writeRaf.setPosition(record.offset);
+    await _writeRaf.setPosition(meta.offset);
 
     //delete mark
     await _writeRaf.writeByte(DBFlag.Flag_Delete);
     // remove RAM
-    _records.removeAt(index);
+    _records.remove(id);
     _deletedCount++;
-    _deletedSize += record.recordTotalSize;
+    _deletedSize += meta.recordTotalSize;
 
     //go back end position
     await _writeRaf.setPosition(lastOffset);
@@ -171,7 +172,7 @@ class IndexDB {
     // dist ထဲရေးသွင်း
     if (writeDiskFlush) {
       await writeFlush();
-      mabyCompact();
+      await mabyCompact();
     }
 
     return true;
@@ -202,7 +203,7 @@ class IndexDB {
     final bufferSize = 1024 * 1024;
     final buffer = Uint8List(bufferSize);
 
-    for (var meta in _records) {
+    for (var meta in _records.values) {
       // go meta header
       await readRaf.setPosition(meta.offset);
       int bytesToRead = meta.recordTotalSize;

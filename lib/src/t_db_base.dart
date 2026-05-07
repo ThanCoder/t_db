@@ -211,5 +211,5 @@ class TDB {
   /// ### Database Unique Field List
   ///
   List<int> get getUniqueFieldIdList =>
-      _indexDB.records.map((e) => e.uniqueFieldId).toSet().toList();
+      _indexDB.records.values.map((e) => e.uniqueFieldId).toSet().toList();
 }
